@@ -8,13 +8,17 @@ struct HelpView: View {
     @State private var section: Section = .start
 
     enum Section: String, CaseIterable, Identifiable {
-        case start, daily, recording, words, screens, ladder, advisor, keys, privacy
+        case start, daily, recording, money, debt, goals, screens, ladder, advisor,
+             words, keys, privacy
         var id: String { rawValue }
         var title: String {
             switch self {
             case .start: "Start here"
             case .daily: "Using it daily"
             case .recording: "Where things go"
+            case .money: "Income & windfalls"
+            case .debt: "Loans"
+            case .goals: "Goals & funds"
             case .words: "What the words mean"
             case .screens: "The screens"
             case .ladder: "The Ladder"
@@ -51,6 +55,9 @@ struct HelpView: View {
         case .start: startSection
         case .daily: dailySection
         case .recording: recordingSection
+        case .money: moneySection
+        case .debt: debtSection
+        case .goals: goalsSection
         case .words: wordsSection
         case .screens: screensSection
         case .ladder: ladderSection
@@ -211,6 +218,161 @@ struct HelpView: View {
         }
     }
 
+    // MARK: - Income and windfalls
+
+    private var moneySection: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.md) {
+            heading("Money coming in",
+                    "Regular pay, project work, gifts and refunds are each handled "
+                    + "differently, on purpose.")
+
+            card {
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    SectionLabel(text: "Your salary")
+                    Text("""
+                         Set it once in Settings → Money & time: what lands each month and                          which day. Everything forward-looking reads that number — free to                          spend, goal dates, whether a loan fits.
+
+                         At the end of each month the Income screen compares what actually                          arrived against what you entered. If they differ by more than 1% it                          asks which is right. Say the word and it updates; decline and nothing                          changes.
+                         """)
+                        .font(.system(size: 12.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            card {
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    SectionLabel(text: "Windfalls")
+                    Text("""
+                         Anything arriving above one and a half times your usual week is                          intercepted. It is recorded, but deliberately **not** counted as                          spendable until you have said where it goes.
+
+                         This happens whether you log it from quick capture or record it on                          the Income screen. It is the single most useful behaviour in the app:                          money that never becomes "just balance" does not quietly disappear.
+
+                         The allocation sheet is prefilled 40% to whatever step you are on,                          25% goals, 20% investing, 15% free. Drag the sliders; it must total                          100%. The goal and investing slices really do move money — an earmark                          and a transfer. The 15% free slice is yours and is not tracked                          against anything.
+                         """)
+                        .font(.system(size: 12.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            infoCard("Tax reserve",
+                     "For untaxed income, a share comes off the top and transfers to a tax "
+                     + "reserve account straight away. It cannot be spent from and does not "
+                     + "count in net worth, runway or free-to-spend. It was never your money. "
+                     + "Set the rate in Settings → Thresholds, and confirm it with a local "
+                     + "professional once a year.")
+
+            infoCard("A refund is not income",
+                     "It reverses the original spend. It never counts towards income, your "
+                     + "savings rate, or a good month. Getting that wrong would make every "
+                     + "other number lie.")
+
+            infoCard("A gift waits a week",
+                     "Gifts cannot be allocated for seven days. No decisions in the first "
+                     + "week — large sums invite bad ones.")
+        }
+    }
+
+    // MARK: - Loans
+
+    private var debtSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.md) {
+            heading("Loans", "Recording them, paying them, and clearing them.")
+
+            card {
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    define("Add a loan", "Debt → New loan. Say who it is owed to and how "
+                           + "much it weighs on you: 0 is a faceless lender, 5 is family.")
+                    define("Record a payment", "Right-click the loan → Record a payment. "
+                           + "Enter any amount — it does not have to be the scheduled one.")
+                    define("Clear it", "The payment sheet has a Clear it button that fills in "
+                           + "the full settlement figure. Paying it marks the loan paid.")
+                    define("Money lent out", "Add it with direction Owed to me. It is recorded "
+                           + "at zero expected return, kept out of net worth, and never appears "
+                           + "in what to clear.")
+                }
+            }
+
+            infoCard("Nothing is ever deleted",
+                     "A cleared loan drops out of the payoff order and stops counting against "
+                     + "you, but the loan and every payment stay in your records permanently.")
+
+            card {
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    SectionLabel(text: "Which to clear first")
+                    define("Avalanche", "Highest rate first. Costs the least.")
+                    define("Snowball", "Smallest balance first. Clears one soonest.")
+                    define("Peace of mind", "What you owe people first, whatever it costs.")
+                    define("Balanced", "Rate, who it is owed to, size and urgency, weighted.")
+                    Text("Switching between them tells you what the choice costs in interest. "
+                         + "It shows you the price of choosing peace over arithmetic and then "
+                         + "lets you choose.")
+                        .font(Theme.Font.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            infoCard("Before you borrow",
+                     "Debt → Thinking about a loan. Type an amount, rate and term and it tells "
+                     + "you the monthly payment, the debt-service ratio and the total interest "
+                     + "before you sign — plus what saving the same amount instead would take.")
+        }
+    }
+
+    // MARK: - Goals and funds
+
+    private var goalsSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.md) {
+            heading("Goals, funds and investments",
+                    "Three different jobs, often confused.")
+
+            card {
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    define("A goal", "Something you want to buy. It has a price and a date "
+                           + "the app works out for you.")
+                    define("A sinking fund", "Something you know is coming but not exactly "
+                           + "when or how much: gifts, repairs, an annual renewal.")
+                    define("An investment", "Money you are not going to touch. Tracked "
+                           + "separately, never projected.")
+                }
+            }
+
+            card {
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    SectionLabel(text: "How a goal gets funded")
+                    Text("""
+                         Money is not moved into a separate pot. It is earmarked inside the                          account you nominated: it still shows in that account, it just stops                          counting as available to spend.
+
+                         Each goal card shows how much is in it, which account holds it, and                          when it arrives — with a slider. Drag it and watch the date move.                          That is the honest answer to "should I put more in": you can see                          exactly what it buys you.
+
+                         Goals are funded in your priority order, so a goal's date accounts                          for everything ahead of it in the queue.
+                         """)
+                        .font(.system(size: 12.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            card {
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    SectionLabel(text: "Investments and funds")
+                    Text("""
+                         Add an account of type Investment — your MFund, a T-bill ladder,                          whatever you hold. Putting money in is a transfer (⌘T), so the app                          always knows exactly what you contributed.
+
+                         What it is worth is a different question, and one the app cannot                          answer: it has no internet. So roughly monthly it asks. Open                          Investments, press Enter its value, and put in the figure from your                          statement. It keeps the history and charts it against what you put in.
+
+                         It will never forecast what a holding might become, and a holding you                          have not valued shows no gain rather than pretending it is flat.
+                         """)
+                        .font(.system(size: 12.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            infoCard("The emergency fund is protected",
+                     "The allocation engine only ever adds to it, never takes from it, and "
+                     + "spending out of it asks you to confirm and say why. Set how many "
+                     + "months it should hold in Settings → Thresholds.")
+        }
+    }
+
     // MARK: - Words
 
     private var wordsSection: some View {
@@ -339,14 +501,19 @@ struct HelpView: View {
     private var keysSection: some View {
         VStack(alignment: .leading, spacing: Theme.Space.md) {
             heading("Keyboard", "")
+            infoCard("Two kinds of button in the toolbar",
+                     "Buttons on the right with words — Log a spend, Transfer — work on every "
+                     + "screen. A button on the left is that screen's own: New loan, New goal, "
+                     + "Record income.")
+
             card {
                 VStack(alignment: .leading, spacing: Theme.Space.sm) {
                     shortcut("⌥⌘E", "Quick capture, from any app")
+                    shortcut("⌘,", "Settings")
                     shortcut("⌘N", "Log a spend")
                     shortcut("⌘T", "Transfer between accounts")
                     shortcut("⌥⌘I", "Show or hide the details panel")
                     shortcut("⌘1 … ⌘9", "Jump to a screen")
-                    shortcut("⌘,", "Settings — also in the sidebar under Setup")
                     shortcut("Return", "Save, in any sheet")
                     shortcut("Esc", "Cancel, in any sheet")
                 }
@@ -373,6 +540,21 @@ struct HelpView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            card {
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    SectionLabel(text: "Backups")
+                    Text("""
+                         Settings → Data & backup → choose a folder, then Back up now, or                          leave weekly backups on. It keeps the last twelve.
+
+                         It copies the database and its write-ahead log together — without                          that second file a backup can be missing your most recent entries.
+
+                         You can also export everything as CSV or JSON at any time, and import                          a CSV from a spreadsheet or bank export. Nothing is locked in.
+                         """)
+                        .font(.system(size: 12.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             infoCard("So set up backups",
                      "Settings → Data → choose a folder. It keeps the last 12 and can do it "
                      + "weekly on its own. You can also export everything as CSV or JSON at "

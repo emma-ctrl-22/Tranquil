@@ -133,6 +133,8 @@ struct GoalEditor: View {
                     if hasTargetDate {
                         DatePicker("", selection: $targetDate, displayedComponents: .date)
                             .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .frame(maxWidth: 210, alignment: .leading)
                     }
 
                     if let existing, existing.status == .saving {

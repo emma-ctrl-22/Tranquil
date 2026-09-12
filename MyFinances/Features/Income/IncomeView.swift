@@ -42,10 +42,11 @@ struct IncomeView: View {
             .padding(Theme.Space.lg)
         }
         .toolbar {
-            ToolbarItem {
+            ToolbarItem(placement: .navigation) {
                 Button { isRecording = true } label: {
-                    Label("Record income", systemImage: "plus")
+                    Label("Record income", systemImage: "tray.and.arrow.down")
                 }
+                .labelStyle(.titleAndIcon)
             }
         }
         .sheet(isPresented: $isRecording) {

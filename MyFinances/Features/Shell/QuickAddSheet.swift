@@ -18,6 +18,9 @@ struct QuickAddSheet: View {
     private var categories: [Category]
     @Query(filter: #Predicate<Account> { $0.deletedAt == nil }, sort: \Account.sortOrder)
     private var accounts: [Account]
+    @Query(filter: #Predicate<Transaction> { $0.deletedAt == nil })
+    private var transactions: [Transaction]
+    @Query private var settingsRows: [AppSettings]
 
     @State private var entry = ""
     @State private var selectedCategoryID: UUID?
@@ -219,6 +222,23 @@ struct QuickAddSheet: View {
         context.insert(transaction)
         category?.lastAmount = amount
         DailyLogService.recordEntry(on: transaction.date, in: context, calendar: calendar)
+
+        // A large inflow is intercepted rather than quietly joining spendable balance.
+        if kind == .income, let settings = settingsRows.first,
+           IncomeEventService.shouldIntercept(amount: amount, kind: .projectPayment,
+                                              settings: settings,
+                                              medianWeeklyIncome: medianWeeklyIncome) {
+            let event = IncomeEvent(
+                kind: .projectPayment, receivedAt: transaction.date, grossAmount: amount,
+                taxReserved: IncomeEngine.taxReserve(on: amount, rate: settings.taxReserveRate,
+                                                     kind: .projectPayment),
+                clientOrSource: noteToken.isEmpty ? nil : noteToken, account: account
+            )
+            event.transactionID = transaction.id
+            transaction.incomeEventID = event.id
+            context.insert(event)
+        }
+
         try? context.save()
 
         model.lastSaved = (transaction.id, formatter.string(amount))
@@ -232,6 +252,21 @@ struct QuickAddSheet: View {
     }
 
     /// Soft delete, within the five-second window. Nothing is ever hard-deleted.
+    /// The trailing eight weeks of logged income, as a median. Zero until there is
+    /// history, which is what stops the very first entry being intercepted.
+    private var medianWeeklyIncome: Money {
+        let records = transactions.map(DataBridge.record)
+        let today = calendar.today()
+        let weeks = (1...8).map { offset -> Money in
+            let start = calendar.addDays(-7 * offset, to: today)
+            return BalanceEngine.income(
+                transactions: records,
+                in: DateInterval(start: start, end: calendar.addDays(7, to: start))
+            )
+        }
+        return BudgetEngine.medianWeeklyIncome(trailingWeeks: weeks)
+    }
+
     private func undo() {
         guard let saved = model.lastSaved else { return }
         let id = saved.id

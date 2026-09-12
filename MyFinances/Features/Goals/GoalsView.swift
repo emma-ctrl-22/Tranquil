@@ -93,8 +93,11 @@ struct GoalsView: View {
             .padding(Theme.Space.lg)
         }
         .toolbar {
-            ToolbarItem {
-                Button { isCreating = true } label: { Label("Add goal", systemImage: "plus") }
+            ToolbarItem(placement: .navigation) {
+                Button { isCreating = true } label: {
+                    Label("New goal", systemImage: "plus.circle")
+                }
+                .labelStyle(.titleAndIcon)
             }
         }
         .sheet(isPresented: $isCreating) {

@@ -226,6 +226,35 @@ struct MenuBarPopover: View {
         context.insert(transaction)
         category?.lastAmount = amount
         DailyLogService.recordEntry(on: transaction.date, in: context, calendar: calendar)
+
+        // Same interception as the main window: a windfall does not join spendable
+        // balance just because it was logged from the menu bar.
+        if parsed.kind == .income, let settings {
+            let records = transactions.map(DataBridge.record)
+            let weeks = (1...8).map { offset -> Money in
+                let start = calendar.addDays(-7 * offset, to: calendar.today())
+                return BalanceEngine.income(
+                    transactions: records,
+                    in: DateInterval(start: start, end: calendar.addDays(7, to: start))
+                )
+            }
+            let median = BudgetEngine.medianWeeklyIncome(trailingWeeks: weeks)
+            if IncomeEventService.shouldIntercept(amount: amount, kind: .projectPayment,
+                                                  settings: settings,
+                                                  medianWeeklyIncome: median) {
+                let event = IncomeEvent(
+                    kind: .projectPayment, receivedAt: transaction.date, grossAmount: amount,
+                    taxReserved: IncomeEngine.taxReserve(on: amount,
+                                                         rate: settings.taxReserveRate,
+                                                         kind: .projectPayment),
+                    clientOrSource: parsed.note, account: account
+                )
+                event.transactionID = transaction.id
+                transaction.incomeEventID = event.id
+                context.insert(event)
+            }
+        }
+
         try? context.save()
 
         lastSaved = (transaction.id, formatter.string(amount))

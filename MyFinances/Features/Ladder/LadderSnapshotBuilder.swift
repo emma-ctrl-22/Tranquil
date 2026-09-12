@@ -104,10 +104,20 @@ nonisolated enum LadderSnapshotBuilder {
         )
 
         // Emergency fund and sinking funds.
+        // The earmarked emergency fund is the real figure. If there is no such fund yet
+        // but an account is flagged as the emergency fund, use its balance rather than
+        // reporting zero — two places claiming to hold it would otherwise disagree.
         let emergencyFund = sources.funds.first(where: \.isEmergencyFund)
-        let emergencyBalance = emergencyFund.map { fund in
-            Money.sum(sources.earmarks.filter { $0.ownerID == fund.id }.map(\.amount))
-        } ?? .zero
+        let emergencyBalance: Money
+        if let emergencyFund {
+            emergencyBalance = Money.sum(
+                sources.earmarks.filter { $0.ownerID == emergencyFund.id }.map(\.amount)
+            )
+        } else if let flagged = balances.first(where: { $0.account.isEmergencyFundAccount }) {
+            emergencyBalance = flagged.balance
+        } else {
+            emergencyBalance = .zero
+        }
         let fundsWithTargets = sources.funds.filter { $0.targetAmount.isPositive }
         let fundsOnTrack = fundsWithTargets.filter { fund in
             let saved = Money.sum(sources.earmarks.filter { $0.ownerID == fund.id }.map(\.amount))
@@ -156,7 +166,7 @@ nonisolated enum LadderSnapshotBuilder {
             monthsAllStagesHeld: 0,
             onTimePaymentsRatio: onTimeRatio,
             budgetAdherenceRatio: adherence,
-            emergencyFundTargetMonths: sources.settings?.recommendedEmergencyFundMonths ?? 6,
+            emergencyFundTargetMonths: sources.settings?.emergencyFundMonths ?? 6,
             stage6MaxDebtService: sources.settings?.stage6MaxDebtService
                 ?? Decimal(string: "0.20")!,
             stage6MaxAPR: sources.settings?.stage6MaxAPR ?? Decimal(string: "0.15")!,

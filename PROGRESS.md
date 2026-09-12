@@ -540,6 +540,73 @@ out of a project payment.
 22. **Valuations go stale after 30 days.** Funds report monthly; asking more often is
     noise. An account with money in it and no valuation at all is always asked.
 
+---
+
+## M11 — Conflict audit
+
+Asked to check whether anything conflicted. Five real problems, all fixed.
+
+1. **Recorded income never reached the ledger.** An `IncomeEvent` wrote no `Transaction`,
+   so ₵1,600 of project money raised no balance, appeared in no ledger, and was invisible
+   to the monthly salary check — while quick capture wrote a transaction with no event.
+   Two ways in, two different outcomes. `IncomeEventService.post` now writes the income
+   entry and moves the tax reserve as its own transfer, from both paths.
+
+2. **Windfall interception never ran.** `isWindfall` was written and tested but nothing
+   called it, so the behaviour the spec calls the most valuable in the app did not
+   happen. Quick capture and the menu bar popover now intercept automatically against the
+   trailing 8-week median.
+
+3. **Allocations moved nothing.** The sheet wrote `IncomeAllocation` rows and stopped.
+   Goal and sinking-fund slices now create or increase an earmark; the investment slice
+   writes a real transfer. The ladder-gap slice is still left as an instruction, because
+   where it lands depends on your step — that is now stated rather than silently skipped.
+
+4. **The emergency fund setting was ignored.** Settings edited `emergencyFundMonths`
+   while the Ladder read `recommendedEmergencyFundMonths`, so changing it did nothing.
+   The setting is now authoritative and the recommendation is offered with an Apply
+   button. Two claimants on the balance itself (an `Account` flag and a `SinkingFund`
+   flag) now have a defined precedence.
+
+5. **Loan balances ignored how much was actually paid.** `remainingBalance` came from the
+   *count* of payments against the schedule, so overpaying reduced the balance by the
+   scheduled instalment only. It now follows principal actually cleared, with the
+   schedule as the fallback before any payment exists. Two tests added.
+
+### Also
+- **Toolbar** — two bare `+` glyphs were indistinguishable. Global actions are now
+  labelled and on the right; a screen's own action is on the left with its own noun.
+- **Date pickers** — all six made compact and consistently sized.
+- **`DOCUMENTATION.md`** — architecture, the money and time rules, where every kind of
+  movement is recorded, a single-source-of-truth table, how to add things, and known gaps.
+- **Help** — rewritten to twelve sections, adding Income & windfalls, Loans, and
+  Goals & funds.
+
+---
+
+## M12 — Desktop widget
+
+Display only: widgets cannot take typed input, and ⌥⌘E already opens capture from any
+app, which is faster than reaching for a widget.
+
+**The database does not move.** A widget runs in its own process and cannot read the
+app's store, so rather than relocating the database into an App Group container — a
+migration of real data for a read-only feature — the app writes a small pre-formatted
+JSON snapshot into the shared container and the widget reads that. The widget never
+writes anything and never touches the store.
+
+- `WidgetSnapshot` — the Codable contract, the one file shared by both targets.
+- `WidgetSnapshotWriter` — builds it from live data on launch and whenever the ledger
+  changes, then reloads the timeline.
+- `TranquilWidget` — small, medium and large. Free to spend, spend today and this week,
+  runway, stability score, streak, the one next Ladder action, the next scheduled
+  outgoing, and one warning.
+- `WidgetSource/SETUP.md` — the five Xcode steps, and what to check if it shows sample
+  numbers.
+
+Requires a Widget Extension target and the `group.com.MyFinances` App Group on both
+targets; both are done in Xcode's UI rather than by editing the project file.
+
 ### Still hardcoded on purpose
 Notification times and cooldowns (they live in `NotificationRules` as declarative data),
 the payoff-order scoring weights (editable in code via `LoanEngine.Weights`, no UI yet),
@@ -549,6 +616,6 @@ and the heatmap intensity ramps.
 
 ## All milestones complete
 
-355 tests, 0 failures, no warnings. Remaining known gaps are listed under each milestone's
+357 tests, 0 failures, no warnings. Remaining known gaps are listed under each milestone's
 "what is stubbed"; the largest are `monthsAllStagesHeld` (needs recorded history before
 Ladder stage 7 can be reached) and notification inline-action handlers.

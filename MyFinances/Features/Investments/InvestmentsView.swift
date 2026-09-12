@@ -240,6 +240,8 @@ struct ValuationSheet: View {
                 VStack(alignment: .leading, spacing: Theme.Space.xs) {
                     SectionLabel(text: "As at")
                     DatePicker("", selection: $date, displayedComponents: .date).labelsHidden()
+                .datePickerStyle(.compact)
+                .frame(maxWidth: 210, alignment: .leading)
                 }
                 TextField("Note (optional)", text: $note).textFieldStyle(.roundedBorder)
 

@@ -154,8 +154,15 @@ final class AppSettings {
         set { incomeTypeRaw = newValue.rawValue }
     }
 
-    /// Freelance or single-client income means 6 months, not 3 (Order of Operations §2, step 6).
+    /// What the Order of Operations would suggest: 6 months for freelance or mixed
+    /// income, 3 for salaried. Advice, not the setting — `emergencyFundMonths` is what
+    /// the Ladder and the Advisor actually use, so changing it in Settings changes
+    /// the app rather than being quietly ignored.
     var recommendedEmergencyFundMonths: Int {
         incomeType == .salaried ? 3 : 6
+    }
+
+    var emergencyFundMonthsMatchesRecommendation: Bool {
+        emergencyFundMonths == recommendedEmergencyFundMonths
     }
 }

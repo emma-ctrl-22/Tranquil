@@ -174,6 +174,27 @@ struct LoanEngineTests {
         #expect(!position.isPaidOff)
     }
 
+    @Test func payingMoreThanScheduledReducesTheBalanceByMore() {
+        // The payment sheet allows any amount, so the balance must follow the principal
+        // actually cleared, not the number of payments made.
+        let position = LoanEngine.position(
+            for: loan(principal: 120_000, model: .interestFree, months: 12,
+                      paidPrincipal: 50_000, paymentsMade: 2),
+            calendar: calendar
+        )
+        #expect(position.remainingBalance.minorUnits == 70_000)
+    }
+
+    @Test func clearingTheWholePrincipalLeavesNothingOutstanding() {
+        let position = LoanEngine.position(
+            for: loan(principal: 120_000, model: .interestFree, months: 12,
+                      paidPrincipal: 120_000, paymentsMade: 3),
+            calendar: calendar
+        )
+        #expect(position.remainingBalance.isZero)
+        #expect(position.isPaidOff)
+    }
+
     @Test func aFullyPaidLoanIsPaidOff() {
         let position = LoanEngine.position(
             for: loan(principal: 120_000, model: .interestFree, months: 12, paymentsMade: 12),

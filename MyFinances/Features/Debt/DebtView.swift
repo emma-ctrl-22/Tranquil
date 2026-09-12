@@ -85,13 +85,15 @@ struct DebtView: View {
             .padding(Theme.Space.lg)
         }
         .toolbar {
-            ToolbarItemGroup(placement: .automatic) {
+            ToolbarItemGroup(placement: .navigation) {
                 Button { isPlanningLoan = true } label: {
                     Label("Thinking about a loan", systemImage: "questionmark.circle")
                 }
+                .labelStyle(.titleAndIcon)
                 Button { isCreatingLoan = true } label: {
-                    Label("Add loan", systemImage: "plus")
+                    Label("New loan", systemImage: "plus.circle")
                 }
+                .labelStyle(.titleAndIcon)
             }
         }
         .sheet(isPresented: $isCreatingLoan) {

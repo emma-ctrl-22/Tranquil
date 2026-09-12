@@ -55,6 +55,8 @@ struct PostRecurringSheet: View {
                 VStack(alignment: .leading, spacing: Theme.Space.xs) {
                     SectionLabel(text: "When")
                     DatePicker("", selection: $date, displayedComponents: .date).labelsHidden()
+                .datePickerStyle(.compact)
+                .frame(maxWidth: 210, alignment: .leading)
                 }
 
                 Text("This writes one entry"

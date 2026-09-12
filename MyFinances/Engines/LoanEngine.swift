@@ -279,9 +279,18 @@ nonisolated enum LoanEngine {
     static func position(for loan: LoanInput, calendar: FinancialCalendar) -> Position {
         let schedule = schedule(for: loan, calendar: calendar)
         let remainingInstalments = schedule.instalments.dropFirst(loan.paymentsMade)
-        let remainingBalance = remainingInstalments.first.map { instalment in
-            instalment.balance + instalment.principal
-        } ?? .zero
+
+        // Principal actually paid off wins over what the schedule assumed, so paying more
+        // than an instalment reduces the balance by more than an instalment. When no
+        // principal has been recorded, fall back to where the schedule says you are.
+        let remainingBalance: Money
+        if loan.paidPrincipal.isPositive {
+            remainingBalance = (loan.principal - loan.paidPrincipal).clampedToZero
+        } else {
+            remainingBalance = remainingInstalments.first.map { instalment in
+                instalment.balance + instalment.principal
+            } ?? .zero
+        }
         return Position(
             loan: loan,
             schedule: schedule,

@@ -143,6 +143,8 @@ struct RecurringRuleEditor: View {
                     field("Next due") {
                         DatePicker("", selection: $nextDue, displayedComponents: .date)
                             .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .frame(maxWidth: 210, alignment: .leading)
                     }
 
                     Toggle("The amount varies", isOn: $isVariableAmount)

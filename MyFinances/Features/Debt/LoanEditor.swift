@@ -115,6 +115,8 @@ struct LoanEditor: View {
                     field("Started") {
                         DatePicker("", selection: $startDate, displayedComponents: .date)
                             .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .frame(maxWidth: 210, alignment: .leading)
                     }
                     if direction == .iOwe {
                         field("How much it weighs on you") {

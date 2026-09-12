@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		291A8F823055A9C500BBCD05 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 291A8F813055A9C400BBCD05 /* WidgetKit.framework */; };
+		291A8F843055A9C500BBCD05 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 291A8F833055A9C500BBCD05 /* SwiftUI.framework */; };
+		291A8F933055A9C700BBCD05 /* TranquilWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 291A8F7F3055A9C400BBCD05 /* TranquilWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		291A8D9C3055445D00BBCD05 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,13 +27,47 @@
 			remoteGlobalIDString = 291A8D8B3055445B00BBCD05;
 			remoteInfo = MyFinances;
 		};
+		291A8F913055A9C700BBCD05 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 291A8D843055445B00BBCD05 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 291A8F7E3055A9C400BBCD05;
+			remoteInfo = TranquilWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		291A8F983055A9C700BBCD05 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				291A8F933055A9C700BBCD05 /* TranquilWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		291A8D8C3055445C00BBCD05 /* MyFinances.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyFinances.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		291A8D9B3055445D00BBCD05 /* MyFinancesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MyFinancesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		291A8DA53055445D00BBCD05 /* MyFinancesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MyFinancesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		291A8F7F3055A9C400BBCD05 /* TranquilWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TranquilWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		291A8F813055A9C400BBCD05 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		291A8F833055A9C500BBCD05 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		291A8F943055A9C700BBCD05 /* Exceptions for "TranquilWidget" folder in "TranquilWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 291A8F7E3055A9C400BBCD05 /* TranquilWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		291A8D8E3055445C00BBCD05 /* MyFinances */ = {
@@ -43,6 +83,14 @@
 		291A8DA83055445D00BBCD05 /* MyFinancesUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MyFinancesUITests;
+			sourceTree = "<group>";
+		};
+		291A8F853055A9C500BBCD05 /* TranquilWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				291A8F943055A9C700BBCD05 /* Exceptions for "TranquilWidget" folder in "TranquilWidgetExtension" target */,
+			);
+			path = TranquilWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,6 +117,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		291A8F7C3055A9C400BBCD05 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				291A8F843055A9C500BBCD05 /* SwiftUI.framework in Frameworks */,
+				291A8F823055A9C500BBCD05 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -78,6 +135,8 @@
 				291A8D8E3055445C00BBCD05 /* MyFinances */,
 				291A8D9E3055445D00BBCD05 /* MyFinancesTests */,
 				291A8DA83055445D00BBCD05 /* MyFinancesUITests */,
+				291A8F853055A9C500BBCD05 /* TranquilWidget */,
+				291A8F803055A9C400BBCD05 /* Frameworks */,
 				291A8D8D3055445C00BBCD05 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,8 +147,18 @@
 				291A8D8C3055445C00BBCD05 /* MyFinances.app */,
 				291A8D9B3055445D00BBCD05 /* MyFinancesTests.xctest */,
 				291A8DA53055445D00BBCD05 /* MyFinancesUITests.xctest */,
+				291A8F7F3055A9C400BBCD05 /* TranquilWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		291A8F803055A9C400BBCD05 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				291A8F813055A9C400BBCD05 /* WidgetKit.framework */,
+				291A8F833055A9C500BBCD05 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -102,10 +171,12 @@
 				291A8D883055445B00BBCD05 /* Sources */,
 				291A8D893055445B00BBCD05 /* Frameworks */,
 				291A8D8A3055445B00BBCD05 /* Resources */,
+				291A8F983055A9C700BBCD05 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				291A8F923055A9C700BBCD05 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				291A8D8E3055445C00BBCD05 /* MyFinances */,
@@ -163,6 +234,28 @@
 			productReference = 291A8DA53055445D00BBCD05 /* MyFinancesUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		291A8F7E3055A9C400BBCD05 /* TranquilWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 291A8F953055A9C700BBCD05 /* Build configuration list for PBXNativeTarget "TranquilWidgetExtension" */;
+			buildPhases = (
+				291A8F7B3055A9C400BBCD05 /* Sources */,
+				291A8F7C3055A9C400BBCD05 /* Frameworks */,
+				291A8F7D3055A9C400BBCD05 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				291A8F853055A9C500BBCD05 /* TranquilWidget */,
+			);
+			name = TranquilWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = TranquilWidgetExtension;
+			productReference = 291A8F7F3055A9C400BBCD05 /* TranquilWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,6 +277,9 @@
 						CreatedOnToolsVersion = 26.6;
 						TestTargetID = 291A8D8B3055445B00BBCD05;
 					};
+					291A8F7E3055A9C400BBCD05 = {
+						CreatedOnToolsVersion = 26.6;
+					};
 				};
 			};
 			buildConfigurationList = 291A8D873055445B00BBCD05 /* Build configuration list for PBXProject "MyFinances" */;
@@ -203,6 +299,7 @@
 				291A8D8B3055445B00BBCD05 /* MyFinances */,
 				291A8D9A3055445D00BBCD05 /* MyFinancesTests */,
 				291A8DA43055445D00BBCD05 /* MyFinancesUITests */,
+				291A8F7E3055A9C400BBCD05 /* TranquilWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +320,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		291A8DA33055445D00BBCD05 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		291A8F7D3055A9C400BBCD05 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +357,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		291A8F7B3055A9C400BBCD05 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +376,11 @@
 			isa = PBXTargetDependency;
 			target = 291A8D8B3055445B00BBCD05 /* MyFinances */;
 			targetProxy = 291A8DA63055445D00BBCD05 /* PBXContainerItemProxy */;
+		};
+		291A8F923055A9C700BBCD05 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 291A8F7E3055A9C400BBCD05 /* TranquilWidgetExtension */;
+			targetProxy = 291A8F913055A9C700BBCD05 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -535,6 +651,70 @@
 			};
 			name = Release;
 		};
+		291A8F963055A9C700BBCD05 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VZ4AFL6ZHN;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TranquilWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = TranquilWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.MyFinances.TranquilWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		291A8F973055A9C700BBCD05 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VZ4AFL6ZHN;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TranquilWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = TranquilWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.MyFinances.TranquilWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -570,6 +750,15 @@
 			buildConfigurations = (
 				291A8DB63055445D00BBCD05 /* Debug */,
 				291A8DB73055445D00BBCD05 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		291A8F953055A9C700BBCD05 /* Build configuration list for PBXNativeTarget "TranquilWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				291A8F963055A9C700BBCD05 /* Debug */,
+				291A8F973055A9C700BBCD05 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

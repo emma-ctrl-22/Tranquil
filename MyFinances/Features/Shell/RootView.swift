@@ -85,7 +85,11 @@ struct RootView: View {
         .task {
             bootstrapIfNeeded()
             runNotificationRules()
+            refreshWidget()
         }
+        .onChange(of: transactions.count) { _, _ in refreshWidget() }
+        .onChange(of: accounts.count) { _, _ in refreshWidget() }
+        .onChange(of: dailyLogs.count) { _, _ in refreshWidget() }
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
             model.open(.settings)
         }
@@ -592,12 +596,15 @@ struct RootView: View {
         ToolbarItem(placement: .principal) {
             Text(model.screen.title).font(Theme.Font.title)
         }
+        // These are always available, whatever screen you are on, so they are labelled.
+        // A screen's own add button is a bare glyph; these never are.
         ToolbarItemGroup(placement: .primaryAction) {
             Button {
                 model.isQuickAddShown = true
             } label: {
-                Label("Log", systemImage: "plus")
+                Label("Log a spend", systemImage: "square.and.pencil")
             }
+            .labelStyle(.titleAndIcon)
             .keyboardShortcut("n", modifiers: .command)
             .help("Log a transaction (⌘N)")
 
@@ -606,16 +613,11 @@ struct RootView: View {
             } label: {
                 Label("Transfer", systemImage: "arrow.left.arrow.right")
             }
+            .labelStyle(.titleAndIcon)
             .keyboardShortcut("t", modifiers: .command)
             .help("Move money between accounts (⌘T)")
 
-            Button {
-                model.open(.settings)
-            } label: {
-                Label("Settings", systemImage: "gearshape")
-            }
-            .keyboardShortcut(",", modifiers: .command)
-            .help("Settings (⌘,)")
+            Divider()
 
             Button {
                 model.isInspectorShown.toggle()
@@ -625,6 +627,18 @@ struct RootView: View {
             .keyboardShortcut("i", modifiers: [.command, .option])
             .help("Toggle the details panel (⌥⌘I)")
         }
+    }
+
+    /// Hands the widget a fresh snapshot. The widget cannot read the database, so
+    /// everything it shows is computed here.
+    private func refreshWidget() {
+        guard let settings else { return }
+        WidgetSnapshotWriter.write(WidgetSnapshotWriter.Inputs(
+            settings: settings, calendar: calendar, formatter: formatter,
+            accounts: accounts, transactions: transactions, earmarks: earmarks,
+            budgets: budgets, rules: rules, events: events, dailyLogs: dailyLogs,
+            ladder: ladderEvaluation
+        ))
     }
 
     /// Runs the declarative rule set against live data, once per launch.

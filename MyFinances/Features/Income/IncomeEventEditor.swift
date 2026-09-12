@@ -163,6 +163,12 @@ struct IncomeEventEditor: View {
             clientOrSource: source.isEmpty ? nil : source, account: account
         )
         context.insert(event)
+        // The ledger and the event must agree: post the income and move the reserve.
+        IncomeEventService.post(event, in: context, calendar: calendar)
+
+        // A refund is a return of capital, not income, so it needs no allocation.
+        if !kind.countsAsIncome { event.status = .allocated }
+
         try? context.save()
         dismiss()
     }

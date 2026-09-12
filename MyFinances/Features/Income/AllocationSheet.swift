@@ -12,6 +12,13 @@ struct AllocationSheet: View {
     let calendar: FinancialCalendar
 
     @State private var shares: [String: Double] = [:]
+    @State private var goalID: UUID?
+    @State private var fundID: UUID?
+
+    @Query(filter: #Predicate<Goal> { $0.deletedAt == nil }, sort: \Goal.priorityRank)
+    private var goals: [Goal]
+    @Query(filter: #Predicate<SinkingFund> { $0.deletedAt == nil }, sort: \SinkingFund.sortOrder)
+    private var funds: [SinkingFund]
 
     private var slices: [IncomeEngine.Slice] { IncomeEngine.defaultSplit(for: event.kind) }
 
@@ -50,6 +57,8 @@ struct AllocationSheet: View {
         .background(Theme.Palette.surface(scheme))
         .onAppear {
             for slice in slices { shares[slice.id] = doubleValue(slice.share) }
+            goalID = goals.first { $0.status == .saving }?.id
+            fundID = funds.first?.id
         }
     }
 
@@ -120,6 +129,22 @@ struct AllocationSheet: View {
                     }
                 }
 
+                if allocations.contains(where: { $0.slice.kind == .goal && $0.amount.isPositive }),
+                   !goals.isEmpty {
+                    Divider().opacity(0.4)
+                    HStack {
+                        Text("Goal slice goes to").font(Theme.Font.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Picker("", selection: $goalID) {
+                            ForEach(goals.filter { $0.status == .saving }) { goal in
+                                Text(goal.name).tag(Optional(goal.id))
+                            }
+                        }
+                        .labelsHidden().frame(maxWidth: 200)
+                    }
+                }
+
                 if !isComplete {
                     NoticeRow(
                         tone: .caution, icon: "equal.circle",
@@ -172,6 +197,11 @@ struct AllocationSheet: View {
                 label: entry.slice.label
             ))
         }
+        // Record what was decided, then actually carry it out.
+        IncomeEventService.apply(allocations: allocations, for: event,
+                                 goalID: goalID ?? goals.first { $0.status == .saving }?.id,
+                                 sinkingFundID: fundID ?? funds.first?.id,
+                                 in: context, calendar: calendar)
         event.status = .allocated
         event.allocatedAt = calendar.currentDate()
         event.updatedAt = calendar.currentDate()

@@ -192,6 +192,20 @@ struct SettingsView: View {
                 Section("Safety net") {
                     Stepper("Emergency fund: \(settings.emergencyFundMonths) months",
                             value: binding(\.emergencyFundMonths), in: 1...24)
+                    if !settings.emergencyFundMonthsMatchesRecommendation {
+                        HStack {
+                            Text("\(settings.incomeType == .salaried ? "Salaried" : "Irregular") "
+                                 + "income suggests \(settings.recommendedEmergencyFundMonths) "
+                                 + "months.")
+                                .font(Theme.Font.caption).foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Use \(settings.recommendedEmergencyFundMonths)") {
+                                settings.emergencyFundMonths = settings.recommendedEmergencyFundMonths
+                                try? context.save()
+                            }
+                            .controlSize(.small)
+                        }
+                    }
                     percentField("Speculation cap of net worth",
                                  \.speculationCapOfNetWorthBasisPoints)
                     percentField("One income source counts as concentrated above",

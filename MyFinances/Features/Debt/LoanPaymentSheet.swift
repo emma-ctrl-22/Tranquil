@@ -96,6 +96,8 @@ struct LoanPaymentSheet: View {
                     field("When") {
                         DatePicker("", selection: $date, displayedComponents: .date)
                             .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .frame(maxWidth: 210, alignment: .leading)
                     }
 
                     Toggle("This payment was late", isOn: $isLate)
