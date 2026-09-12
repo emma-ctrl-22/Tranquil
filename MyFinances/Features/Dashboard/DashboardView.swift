@@ -79,12 +79,16 @@ struct DashboardView: View {
             from: calendar.currentDate(),
             days: 60,
             scheduled: rules.filter { !$0.isArchived }.map(DataBridge.scheduled),
-            oneOffs: events.map(DataBridge.oneOff),
+            oneOffs: events.map { DataBridge.oneOff($0, maybeWeight: maybeEventWeight) },
             calendar: calendar
         )
     }
 
     // MARK: - Module summaries
+
+    private var maybeEventWeight: Decimal {
+        settings?.maybeEventWeight ?? Decimal(string: "0.5")!
+    }
 
     private var debtPositions: [LoanEngine.Position] {
         loans.filter { $0.status != .planned }

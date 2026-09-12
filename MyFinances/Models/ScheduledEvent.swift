@@ -53,12 +53,14 @@ final class ScheduledEvent {
     /// ASSUMPTION: certain 100%, likely 100%, maybe 50%. A "maybe" still needs
     /// partial cover — treating it as zero is how people get surprised — but
     /// funding it fully would over-reserve. Halving is the conservative middle.
-    var projectionWeight: Decimal {
+    func projectionWeight(maybeWeight: Decimal = Decimal(string: "0.5")!) -> Decimal {
         switch confidence {
         case .certain, .likely: 1
-        case .maybe: Decimal(0.5)
+        case .maybe: maybeWeight
         }
     }
 
-    var projectedAmount: Money { expectedAmount.scaled(by: projectionWeight) }
+    func projectedAmount(maybeWeight: Decimal = Decimal(string: "0.5")!) -> Money {
+        expectedAmount.scaled(by: projectionWeight(maybeWeight: maybeWeight))
+    }
 }

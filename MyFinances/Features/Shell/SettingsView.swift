@@ -16,6 +16,8 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             general.tabItem { Label("General", systemImage: "gearshape") }
+            money.tabItem { Label("Money & time", systemImage: "banknote") }
+            thresholds.tabItem { Label("Thresholds", systemImage: "slider.horizontal.3") }
             notifications.tabItem { Label("Notifications", systemImage: "bell") }
             data.tabItem { Label("Data", systemImage: "externaldrive") }
             security.tabItem { Label("Security", systemImage: "touchid") }
@@ -42,16 +44,219 @@ struct SettingsView: View {
                  + "anywhere.")
                 .font(Theme.Font.caption).foregroundStyle(.secondary)
 
-            if let settings {
-                Divider()
-                LabeledContent("Currency", value: settings.currencyCode)
-                LabeledContent("Week starts", value: settings.weekStartsOn == 2 ? "Monday" : "Sunday")
-                LabeledContent("Day starts at", value: "\(settings.financialDayStartsAtHour):00")
-                Text("A late-night spend before this hour counts towards the previous day.")
-                    .font(Theme.Font.caption).foregroundStyle(.secondary)
-            }
         }
         .formStyle(.grouped)
+    }
+
+    // MARK: - Money and time
+
+    @ViewBuilder
+    private var money: some View {
+        if let settings {
+            Form {
+                Section("Currency and calendar") {
+                    Picker("Currency", selection: Binding(
+                        get: { settings.currencyCode },
+                        set: { code in
+                            if let currency = Currency.named(code) {
+                                settings.applyCurrency(currency)
+                                try? context.save()
+                            }
+                        }
+                    )) {
+                        ForEach(Currency.known, id: \.code) { currency in
+                            Text("\(currency.symbol)  \(currency.code)").tag(currency.code)
+                        }
+                    }
+
+                    Picker("Week starts on", selection: binding(\.weekStartsOn)) {
+                        Text("Monday").tag(2)
+                        Text("Sunday").tag(1)
+                    }
+
+                    Stepper("Day starts at \(settings.financialDayStartsAtHour):00",
+                            value: binding(\.financialDayStartsAtHour), in: 0...12)
+                    Text("A spend logged before this hour counts towards the previous day, so a "
+                         + "01:00 taxi belongs to the night out, not the morning after.")
+                        .font(Theme.Font.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Section("You") {
+                    Stepper("Born \(settings.birthYear) — age \(settings.age)",
+                            value: binding(\.birthYear), in: 1930...2020)
+                    Picker("Income", selection: Binding(
+                        get: { settings.incomeType },
+                        set: { settings.incomeType = $0; try? context.save() }
+                    )) {
+                        Text("Salaried").tag(AppSettings.IncomeType.salaried)
+                        Text("Freelance").tag(AppSettings.IncomeType.freelance)
+                        Text("Mixed").tag(AppSettings.IncomeType.mixed)
+                    }
+                    Text("Freelance or mixed income targets a six-month emergency fund instead "
+                         + "of three, and applies the tax reserve to untaxed inflows.")
+                        .font(Theme.Font.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Stepper("Dependents: \(settings.dependents)",
+                            value: binding(\.dependents), in: 0...12)
+                }
+
+                Section("Regular income") {
+                    moneyField("Net pay each month", \.expectedMonthlyNetIncomeMinorUnits)
+                    Stepper("Paid on the \(settings.salaryDayOfMonth)",
+                            value: binding(\.salaryDayOfMonth), in: 1...31)
+                    Text("Spread across the year as "
+                         + formatter.string(settings.expectedWeeklyIncomeFromSalary)
+                         + " a week, because a monthly salary would otherwise read as zero "
+                         + "in three weeks out of four.")
+                        .font(Theme.Font.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .formStyle(.grouped)
+        }
+    }
+
+    // MARK: - Thresholds
+
+    @ViewBuilder
+    private var thresholds: some View {
+        if let settings {
+            Form {
+                Section("Tax and debt") {
+                    percentField("Tax reserve on untaxed income", \.taxReserveRateBasisPoints)
+                    percentField("High-interest line (APR)",
+                                 \.highInterestThresholdAPRBasisPoints)
+                    percentField("Debt service cap", \.maxDebtServiceRatioBasisPoints)
+                    Text("Above the cap a planned loan reads Not affordable and is blocked. "
+                         + "Confirm the tax rate with a local professional once a year.")
+                        .font(Theme.Font.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Section("Safety net") {
+                    Stepper("Emergency fund: \(settings.emergencyFundMonths) months",
+                            value: binding(\.emergencyFundMonths), in: 1...24)
+                    percentField("Speculation cap of net worth",
+                                 \.speculationCapOfNetWorthBasisPoints)
+                    percentField("One income source counts as concentrated above",
+                                 \.concentrationThresholdBasisPoints)
+                }
+
+                Section("Pace and pauses") {
+                    percentField("Envelope alert margin", \.burnAlertMarginBasisPoints)
+                    percentField("Weight given to a \u{201C}maybe\u{201D} event",
+                                 \.maybeEventWeightBasisPoints)
+                    percentField("Windfall trigger (x median week)",
+                                 \.windfallMultipleBasisPoints)
+                    moneyField("Cool-off applies to goals above", \.coolOffThresholdMinorUnits)
+                    Stepper("Cool-off: \(settings.goalCoolOffDays) days",
+                            value: binding(\.goalCoolOffDays), in: 0...30)
+                    moneyField("Show cost-in-time above", \.costInTimeThresholdMinorUnits)
+                }
+
+                Section("Ladder stage 6 and scoring") {
+                    percentField("Debt service at or under", \.stage6MaxDebtServiceBasisPoints)
+                    percentField("No loan above", \.stage6MaxAPRBasisPoints)
+                    Stepper("Runway scores full marks at \(settings.runwayFullMarksMonths) months",
+                            value: binding(\.runwayFullMarksMonths), in: 1...24)
+                    percentField("Debt service scores zero at",
+                                 \.debtServiceZeroScoreBasisPoints)
+                }
+
+                Button("Reset thresholds to defaults", action: resetThresholds)
+            }
+            .formStyle(.grouped)
+        }
+    }
+
+    // MARK: - Field helpers
+
+    private var formatter: MoneyFormatter {
+        settings?.formatter ?? MoneyFormatter(currency: .ghs)
+    }
+
+    private func binding<Value>(_ keyPath: ReferenceWritableKeyPath<AppSettings, Value>)
+    -> Binding<Value> {
+        Binding(
+            get: { settings?[keyPath: keyPath] ?? placeholder[keyPath: keyPath] },
+            set: { settings?[keyPath: keyPath] = $0; try? context.save() }
+        )
+    }
+
+    /// A stand-in so the bindings have something to read before setup has run.
+    private var placeholder: AppSettings { AppSettings() }
+
+    /// Basis points edited as a plain percentage.
+    private func percentField(
+        _ label: String, _ keyPath: ReferenceWritableKeyPath<AppSettings, Int>
+    ) -> some View {
+        let value = Binding<Double>(
+            get: { Double(settings?[keyPath: keyPath] ?? 0) / 100 },
+            set: {
+                settings?[keyPath: keyPath] = Int(($0 * 100).rounded())
+                try? context.save()
+            }
+        )
+        return HStack {
+            Text(label)
+            Spacer()
+            TextField("", value: value, format: .number.precision(.fractionLength(0...2)))
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 72)
+            Text("%").foregroundStyle(.secondary)
+        }
+    }
+
+    private func moneyField(
+        _ label: String, _ keyPath: ReferenceWritableKeyPath<AppSettings, Int>
+    ) -> some View {
+        let text = Binding<String>(
+            get: {
+                formatter.string(Money(minorUnits: settings?[keyPath: keyPath] ?? 0),
+                                 style: .bare)
+            },
+            set: {
+                if let parsed = formatter.parse($0) {
+                    settings?[keyPath: keyPath] = parsed.minorUnits
+                    try? context.save()
+                }
+            }
+        )
+        return HStack {
+            Text(label)
+            Spacer()
+            Text(formatter.currency.symbol).foregroundStyle(.secondary)
+            TextField("", text: text)
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 96)
+        }
+    }
+
+    private func resetThresholds() {
+        guard let settings else { return }
+        let defaults = AppSettings()
+        settings.taxReserveRateBasisPoints = defaults.taxReserveRateBasisPoints
+        settings.highInterestThresholdAPRBasisPoints = defaults.highInterestThresholdAPRBasisPoints
+        settings.maxDebtServiceRatioBasisPoints = defaults.maxDebtServiceRatioBasisPoints
+        settings.speculationCapOfNetWorthBasisPoints = defaults.speculationCapOfNetWorthBasisPoints
+        settings.concentrationThresholdBasisPoints = defaults.concentrationThresholdBasisPoints
+        settings.burnAlertMarginBasisPoints = defaults.burnAlertMarginBasisPoints
+        settings.maybeEventWeightBasisPoints = defaults.maybeEventWeightBasisPoints
+        settings.windfallMultipleBasisPoints = defaults.windfallMultipleBasisPoints
+        settings.coolOffThresholdMinorUnits = defaults.coolOffThresholdMinorUnits
+        settings.goalCoolOffDays = defaults.goalCoolOffDays
+        settings.costInTimeThresholdMinorUnits = defaults.costInTimeThresholdMinorUnits
+        settings.stage6MaxDebtServiceBasisPoints = defaults.stage6MaxDebtServiceBasisPoints
+        settings.stage6MaxAPRBasisPoints = defaults.stage6MaxAPRBasisPoints
+        settings.runwayFullMarksMonths = defaults.runwayFullMarksMonths
+        settings.debtServiceZeroScoreBasisPoints = defaults.debtServiceZeroScoreBasisPoints
+        settings.emergencyFundMonths = defaults.emergencyFundMonths
+        try? context.save()
+        status = "Thresholds reset."
     }
 
     @ViewBuilder

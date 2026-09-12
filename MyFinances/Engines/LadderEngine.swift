@@ -50,10 +50,11 @@ nonisolated enum LadderEngine {
         /// Envelopes finishing inside budget, out of those with a budget, trailing 8 weeks.
         var budgetAdherenceRatio: Decimal
         var emergencyFundTargetMonths: Int
-
-        /// The thresholds the spec fixes for stage 6.
-        static let maxDebtServiceForStage6 = Decimal(string: "0.20")!
-        static let maxAPRForStage6 = Decimal(string: "0.15")!
+        /// Stage 6 thresholds and the scoring curves, all configurable in Settings.
+        var stage6MaxDebtService: Decimal = Decimal(string: "0.20")!
+        var stage6MaxAPR: Decimal = Decimal(string: "0.15")!
+        var runwayFullMarksMonths: Int = 6
+        var debtServiceZeroScore: Decimal = Decimal(string: "0.40")!
     }
 
     // MARK: - Outputs
@@ -146,8 +147,8 @@ nonisolated enum LadderEngine {
             return snapshot.sinkingFundsOnTrack == snapshot.sinkingFundsTotal
 
         case .debtSmallAndCheap:
-            return snapshot.debtServiceRatio <= Snapshot.maxDebtServiceForStage6
-                && snapshot.highestRemainingAPR <= Snapshot.maxAPRForStage6
+            return snapshot.debtServiceRatio <= snapshot.stage6MaxDebtService
+                && snapshot.highestRemainingAPR <= snapshot.stage6MaxAPR
 
         case .tranquil:
             // Everything below, held together for six months, with investing kept up.
@@ -195,7 +196,9 @@ nonisolated enum LadderEngine {
             return "\(snapshot.sinkingFundsOnTrack) of \(snapshot.sinkingFundsTotal) funds "
                  + "at or above where they should be."
         case .debtSmallAndCheap:
-            return "Debt service at or under 20% of income, nothing above 15% APR."
+            return "Debt service at or under "
+                 + "\(Money.roundBankers(snapshot.stage6MaxDebtService * 100))% of income, "
+                 + "nothing above \(Money.roundBankers(snapshot.stage6MaxAPR * 100))% APR."
         case .tranquil:
             return "Stages 0–6 held together for six months, invested in five of the last six."
         }
@@ -225,13 +228,15 @@ nonisolated enum LadderEngine {
     /// runway 30 · debt-service 20 · on-time 15 · logging 10 · sinking funds 10 ·
     /// budget adherence 10 · investment consistency 5
     static func score(_ snapshot: Snapshot) -> Score {
-        // Runway: full marks at six months of essentials.
+        // Runway: full marks at the configured number of months of essentials.
         let runway = runwayMonths(snapshot) ?? 0
-        let runwayFraction = clamp(runway / 6)
+        let runwayFraction = clamp(runway / Decimal(Swift.max(1, snapshot.runwayFullMarksMonths)))
         let runwayPoints = points(runwayFraction, of: 30)
 
         // Debt service: full marks at zero, nothing at or above 40%.
-        let debtFraction = clamp(1 - (snapshot.debtServiceRatio / Decimal(string: "0.40")!))
+        let zeroAt = snapshot.debtServiceZeroScore > 0
+            ? snapshot.debtServiceZeroScore : Decimal(string: "0.40")!
+        let debtFraction = clamp(1 - (snapshot.debtServiceRatio / zeroAt))
         let debtPoints = points(debtFraction, of: 20)
 
         let onTimePoints = points(clamp(snapshot.onTimePaymentsRatio), of: 15)
@@ -355,8 +360,9 @@ nonisolated enum LadderEngine {
         case .debtSmallAndCheap:
             return Action(
                 title: "Bring debt service under 20%",
-                detail: "Debt is at \(percent(snapshot.debtServiceRatio)) of income. Under 20%, "
-                      + "with nothing above 15% APR, it stops constraining you.",
+                detail: "Debt is at \(percent(snapshot.debtServiceRatio)) of income. Under "
+                      + "\(percent(snapshot.stage6MaxDebtService)), with nothing above "
+                      + "\(percent(snapshot.stage6MaxAPR)) APR, it stops constraining you.",
                 screen: .debt
             )
 

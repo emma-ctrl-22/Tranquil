@@ -464,8 +464,43 @@ had not yet run as "failed", which hides the real failure. Serial output gives a
 
 ---
 
+---
+
+## M9 — Settings, backups and Help (added after M8, on request)
+
+### What shipped
+
+**Settings, fully editable** — five tabs. Everything that was a hardcoded constant is now
+a stored setting with a control:
+- *General* — login item, Dock visibility.
+- *Money & time* — currency, week start, financial day boundary, birth year, income type,
+  dependents, net monthly pay and pay day.
+- *Thresholds* — tax reserve, high-interest line, debt-service cap, emergency fund months,
+  speculation cap, income-concentration line, envelope alert margin, "maybe" event weight,
+  windfall trigger, cool-off threshold and days, cost-in-time threshold, Ladder stage 6
+  thresholds, and both stability-score curves. With a reset button.
+- *Data* — backup folder, back up now, weekly backups, CSV and JSON export, CSV import.
+- *Security* / *Privacy* — app lock, and the plain no-network statement.
+
+**Constants moved into settings and wired through the engines**: the envelope burn margin,
+the `.maybe` projection weight, Ladder stage 6's two thresholds, the runway and
+debt-service scoring curves, and the concentration line. Five new tests prove each one
+actually changes the outcome, and that a zero curve falls back rather than dividing by
+zero.
+
+**Help screen** — eight sections in the sidebar: a four-step setup, daily use with worked
+quick-capture examples, the vocabulary, what each screen is for, the Ladder, the Advisor,
+keyboard shortcuts, and where the data lives.
+
+### Still hardcoded on purpose
+Notification times and cooldowns (they live in `NotificationRules` as declarative data),
+the payoff-order scoring weights (editable in code via `LoanEngine.Weights`, no UI yet),
+and the heatmap intensity ramps.
+
+---
+
 ## All milestones complete
 
-335 tests, 0 failures, no warnings. Remaining known gaps are listed under each milestone's
+340 tests, 0 failures, no warnings. Remaining known gaps are listed under each milestone's
 "what is stubbed"; the largest are `monthsAllStagesHeld` (needs recorded history before
 Ladder stage 7 can be reached) and notification inline-action handlers.

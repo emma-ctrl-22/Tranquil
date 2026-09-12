@@ -93,7 +93,10 @@ nonisolated enum LadderSnapshotBuilder {
             startingBalance: totals.liquidAvailable,
             from: calendar.currentDate(), days: 30,
             scheduled: sources.rules.filter { !$0.isArchived }.map(DataBridge.scheduled),
-            oneOffs: sources.events.map(DataBridge.oneOff),
+            oneOffs: sources.events.map {
+                DataBridge.oneOff($0, maybeWeight: sources.settings?.maybeEventWeight
+                                  ?? Decimal(string: "0.5")!)
+            },
             calendar: calendar
         )
         let billsDue = Money.sum(
@@ -153,7 +156,13 @@ nonisolated enum LadderSnapshotBuilder {
             monthsAllStagesHeld: 0,
             onTimePaymentsRatio: onTimeRatio,
             budgetAdherenceRatio: adherence,
-            emergencyFundTargetMonths: sources.settings?.recommendedEmergencyFundMonths ?? 6
+            emergencyFundTargetMonths: sources.settings?.recommendedEmergencyFundMonths ?? 6,
+            stage6MaxDebtService: sources.settings?.stage6MaxDebtService
+                ?? Decimal(string: "0.20")!,
+            stage6MaxAPR: sources.settings?.stage6MaxAPR ?? Decimal(string: "0.15")!,
+            runwayFullMarksMonths: sources.settings?.runwayFullMarksMonths ?? 6,
+            debtServiceZeroScore: sources.settings?.debtServiceZeroScore
+                ?? Decimal(string: "0.40")!
         )
     }
 

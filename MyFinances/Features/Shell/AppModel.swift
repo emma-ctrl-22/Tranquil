@@ -8,6 +8,7 @@ final class AppModel {
     enum Screen: String, CaseIterable, Identifiable, Hashable {
         case dashboard, ledger, accounts, plan, debt, income, advisor, goals, insights, ladder
         case review
+        case help
 
         var id: String { rawValue }
 
@@ -24,6 +25,7 @@ final class AppModel {
             case .insights: "Insights"
             case .ladder: "Ladder"
             case .review: "Review"
+            case .help: "How to use this"
             }
         }
 
@@ -40,6 +42,7 @@ final class AppModel {
             case .insights: "chart.bar"
             case .ladder: "stairs"
             case .review: "doc.text"
+            case .help: "questionmark.circle"
             }
         }
 
@@ -47,7 +50,7 @@ final class AppModel {
         var isAvailable: Bool {
             switch self {
             case .dashboard, .ledger, .accounts, .plan, .debt, .goals, .ladder, .review,
-             .income, .advisor, .insights: true
+             .income, .advisor, .insights, .help: true
             default: false
             }
         }

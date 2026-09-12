@@ -170,8 +170,11 @@ struct SchemaTests {
                                      expectedAmount: Money(minorUnits: 120_000), confidence: .certain)
         let maybe = ScheduledEvent(label: "Wedding", expectedDate: Date(),
                                    expectedAmount: Money(minorUnits: 40_000), confidence: .maybe)
-        #expect(certain.projectedAmount.minorUnits == 120_000)
-        #expect(maybe.projectedAmount.minorUnits == 20_000)
+        // The weight given to a "maybe" is a setting; the default halves it.
+        #expect(certain.projectedAmount().minorUnits == 120_000)
+        #expect(maybe.projectedAmount().minorUnits == 20_000)
+        #expect(maybe.projectedAmount(maybeWeight: 1).minorUnits == 40_000)
+        #expect(maybe.projectedAmount(maybeWeight: 0).isZero)
     }
 
     @Test func settingsExposeThresholdsAsDecimalsNotDoubles() {

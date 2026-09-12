@@ -15,6 +15,7 @@ struct SidebarView: View {
                     group("Daily", [.dashboard, .ledger, .accounts])
                     group("Forward", [.plan, .debt, .goals, .income])
                     group("Standing back", [.ladder, .advisor, .review, .insights])
+                    group("Help", [.help])
                 }
                 .padding(.vertical, Theme.Space.md)
             }

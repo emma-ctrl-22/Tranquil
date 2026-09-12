@@ -53,6 +53,25 @@ final class AppSettings {
     /// Expenses above this get a cost-in-time preview.
     var costInTimeThresholdMinorUnits: Int = 20_000
 
+    /// Alert when an envelope's burn exceeds its expected pace by more than this.
+    var burnAlertMarginBasisPoints: Int = 2_500          // 25.00%
+    /// How much of a `.maybe` scheduled event to carry into projections.
+    var maybeEventWeightBasisPoints: Int = 5_000         // 50.00%
+    /// Ladder stage 6: debt service must be at or under this.
+    var stage6MaxDebtServiceBasisPoints: Int = 2_000     // 20.00%
+    /// Ladder stage 6: no remaining loan above this APR.
+    var stage6MaxAPRBasisPoints: Int = 1_500             // 15.00%
+    /// Runway scoring reaches full marks at this many months.
+    var runwayFullMarksMonths: Int = 6
+    /// Debt-service scoring reaches zero at this ratio.
+    var debtServiceZeroScoreBasisPoints: Int = 4_000     // 40.00%
+    /// One income source above this share raises the emergency fund target.
+    var concentrationThresholdBasisPoints: Int = 6_000   // 60.00%
+    /// Days a gift waits before it can be allocated.
+    var giftCoolOffDays: Int = 7
+    /// Days a goal above the cool-off threshold waits before being marked bought.
+    var goalCoolOffDays: Int = 7
+
     // MARK: Notifications
     var notificationsEnabled: Bool = true
     var quietHoursStartHour: Int = 22
@@ -99,6 +118,12 @@ final class AppSettings {
     var windfallMultiple: Decimal { Decimal(windfallMultipleBasisPoints) / 10_000 }
 
     var coolOffThreshold: Money { Money(minorUnits: coolOffThresholdMinorUnits) }
+    var burnAlertMargin: Decimal { Decimal(burnAlertMarginBasisPoints) / 10_000 }
+    var maybeEventWeight: Decimal { Decimal(maybeEventWeightBasisPoints) / 10_000 }
+    var stage6MaxDebtService: Decimal { Decimal(stage6MaxDebtServiceBasisPoints) / 10_000 }
+    var stage6MaxAPR: Decimal { Decimal(stage6MaxAPRBasisPoints) / 10_000 }
+    var debtServiceZeroScore: Decimal { Decimal(debtServiceZeroScoreBasisPoints) / 10_000 }
+    var concentrationThreshold: Decimal { Decimal(concentrationThresholdBasisPoints) / 10_000 }
     var costInTimeThreshold: Money { Money(minorUnits: costInTimeThresholdMinorUnits) }
 
     var age: Int { calendar.age(birthYear: birthYear) }

@@ -136,6 +136,10 @@ struct RootView: View {
         case .advisor:
             AdvisorView(model: $model, situation: advisorSituation,
                         letter: monthlyLetter, formatter: formatter)
+        case .help:
+            HelpView(model: $model, formatter: formatter)
+        case .help:
+            HelpView(model: $model, formatter: formatter)
         case .insights:
             InsightsView(model: $model, formatter: formatter, calendar: calendar,
                          cells: heatmapCells, streaks: streakSummary,
@@ -145,6 +149,10 @@ struct RootView: View {
         default:
             ComingSoonView(screen: model.screen)
         }
+    }
+
+    private var maybeEventWeight: Decimal {
+        settings?.maybeEventWeight ?? Decimal(string: "0.5")!
     }
 
     /// Everything the Ladder needs, gathered once.
@@ -542,7 +550,7 @@ struct RootView: View {
                 startingBalance: BalanceEngine.totals(for: balances).liquidAvailable,
                 from: calendar.currentDate(), days: 30,
                 scheduled: rules.filter { !$0.isArchived }.map(DataBridge.scheduled),
-                oneOffs: events.map(DataBridge.oneOff), calendar: calendar
+                oneOffs: events.map { DataBridge.oneOff($0, maybeWeight: maybeEventWeight) }, calendar: calendar
             ),
             lastReconciledOn: lastReconciledOn,
             goals: goals.map { DataBridge.goal($0, earmarks: earmarks) }

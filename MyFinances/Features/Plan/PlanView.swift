@@ -83,6 +83,8 @@ struct PlanView: View {
         rules.filter { $0.isCommittedOutflow && !$0.isArchived }.map(DataBridge.commitment)
     }
 
+    private var maybeEventWeight: Decimal { Decimal(string: "0.5")! }
+
     /// Liquid available today is where the projection starts.
     private var projection: ForecastEngine.Projection {
         let balances = BalanceEngine.balances(
@@ -97,7 +99,7 @@ struct PlanView: View {
             from: calendar.currentDate(),
             days: 60,
             scheduled: rules.filter { !$0.isArchived }.map(DataBridge.scheduled),
-            oneOffs: events.map(DataBridge.oneOff),
+            oneOffs: events.map { DataBridge.oneOff($0, maybeWeight: maybeEventWeight) },
             floor: floors.isEmpty ? nil : Money.sum(floors),
             calendar: calendar
         )

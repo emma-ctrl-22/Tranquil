@@ -72,11 +72,13 @@ enum DataBridge {
         )
     }
 
-    static func oneOff(_ event: ScheduledEvent) -> ForecastEngine.OneOffItem {
+    static func oneOff(_ event: ScheduledEvent,
+                       maybeWeight: Decimal = Decimal(string: "0.5")!)
+    -> ForecastEngine.OneOffItem {
         ForecastEngine.OneOffItem(
             id: event.id, label: event.label,
             // Already weighted: a `.maybe` arrives halved.
-            amount: event.projectedAmount, kind: .expense,
+            amount: event.projectedAmount(maybeWeight: maybeWeight), kind: .expense,
             date: event.expectedDate, confidence: event.confidence
         )
     }

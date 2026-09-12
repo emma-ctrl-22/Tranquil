@@ -65,6 +65,8 @@ nonisolated enum BudgetEngine {
         let spent: Money
         /// 0…1+ of the elapsed period, for the pace marker.
         let expectedFraction: Decimal
+        /// How far past pace counts as "ahead". A setting, not a constant.
+        let alertMargin: Decimal
 
         var id: UUID { input.id }
         var name: String { input.name }
@@ -78,7 +80,7 @@ nonisolated enum BudgetEngine {
         /// An envelope with no budget cannot be ahead of pace.
         var isAheadOfPace: Bool {
             guard let burn else { return false }
-            return burn - expectedFraction > Decimal(string: "0.25")!
+            return burn - expectedFraction > alertMargin
         }
 
         /// How far ahead or behind pace, as a fraction. Negative means under pace.
@@ -133,13 +135,15 @@ nonisolated enum BudgetEngine {
         for envelope: EnvelopeInput,
         spent: Money,
         elapsedDaysInWeek: Int,
-        daysInMonth: Int
+        daysInMonth: Int,
+        alertMargin: Decimal = Decimal(string: "0.25")!
     ) -> EnvelopeState {
         EnvelopeState(
             input: envelope,
             budget: weeklyBudget(for: envelope, daysInMonth: daysInMonth),
             spent: spent,
-            expectedFraction: expectedFraction(elapsedDaysInWeek: elapsedDaysInWeek)
+            expectedFraction: expectedFraction(elapsedDaysInWeek: elapsedDaysInWeek),
+            alertMargin: alertMargin
         )
     }
 

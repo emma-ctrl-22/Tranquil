@@ -59,6 +59,19 @@ struct BudgetEngineTests {
         #expect(state.isAheadOfPace)
     }
 
+    @Test func theAlertMarginIsASettingNotAConstant() {
+        // Same spend, different tolerance: a tighter margin flags it, a looser one does not.
+        let spent = Money(minorUnits: 7_000)
+        let tight = BudgetEngine.state(for: envelope(weekly: 10_000), spent: spent,
+                                       elapsedDaysInWeek: 3, daysInMonth: 30,
+                                       alertMargin: Decimal(string: "0.1")!)
+        let loose = BudgetEngine.state(for: envelope(weekly: 10_000), spent: spent,
+                                       elapsedDaysInWeek: 3, daysInMonth: 30,
+                                       alertMargin: Decimal(string: "0.9")!)
+        #expect(tight.isAheadOfPace)
+        #expect(!loose.isAheadOfPace)
+    }
+
     @Test func exactlyAQuarterAheadDoesNotAlert() {
         // The spec says alert when the gap is *greater* than 0.25, not equal to it.
         // Day 7 of 7: expected = 1.0. Spending 125% is exactly 0.25 over.

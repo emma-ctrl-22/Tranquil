@@ -310,3 +310,68 @@ struct LadderEngineTests {
         #expect(LadderEngine.action(for: .sinkingFundsCurrent, snapshot: perfect()).screen == .plan)
     }
 }
+
+/// The thresholds the Ladder uses are settings, not constants.
+struct LadderConfigurationTests {
+
+    private func snapshot(_ change: (inout LadderEngine.Snapshot) -> Void)
+    -> LadderEngine.Snapshot {
+        var base = LadderEngine.Snapshot(
+            liquidAvailable: Money(minorUnits: 1_800_000),
+            essentialMonthlySpend: Money(minorUnits: 300_000),
+            daysLoggedLast28: 27, daysSinceReconciliation: 2, overdueLoanCount: 0,
+            daysSinceLastLatePayment: nil, billsDueNext30Days: .zero,
+            projectedLowNext30Days: Money(minorUnits: 10_000), toxicDebtRemaining: .zero,
+            emergencyFundBalance: Money(minorUnits: 1_800_000),
+            daysSinceEmergencyFundWithdrawal: nil, sinkingFundsOnTrack: 2,
+            sinkingFundsTotal: 2, debtServiceRatio: Decimal(string: "0.22")!,
+            highestRemainingAPR: Decimal(string: "0.17")!,
+            investmentMonthsLast12: 12, investmentMonthsLast6: 6, monthsAllStagesHeld: 8,
+            onTimePaymentsRatio: 1, budgetAdherenceRatio: 1, emergencyFundTargetMonths: 6
+        )
+        change(&base)
+        return base
+    }
+
+    @Test func stageSixUsesTheConfiguredThresholds() {
+        // 22% debt service and 17% APR fail the defaults.
+        #expect(!LadderEngine.isMet(.debtSmallAndCheap, snapshot: snapshot { _ in }))
+        // Loosen both and the same figures pass.
+        let relaxed = snapshot {
+            $0.stage6MaxDebtService = Decimal(string: "0.25")!
+            $0.stage6MaxAPR = Decimal(string: "0.20")!
+        }
+        #expect(LadderEngine.isMet(.debtSmallAndCheap, snapshot: relaxed))
+    }
+
+    @Test func theRunwayCurveIsConfigurable() {
+        // Six months of runway against a six-month curve is full marks.
+        let strict = LadderEngine.score(snapshot { $0.runwayFullMarksMonths = 6 })
+        #expect(strict.components.first { $0.name == "Runway" }?.earned == 30)
+        // Against a twelve-month curve the same runway earns half.
+        let generous = LadderEngine.score(snapshot { $0.runwayFullMarksMonths = 12 })
+        #expect(generous.components.first { $0.name == "Runway" }?.earned == 15)
+    }
+
+    @Test func theDebtScoringCurveIsConfigurable() {
+        let standard = LadderEngine.score(snapshot {
+            $0.debtServiceRatio = Decimal(string: "0.20")!
+            $0.debtServiceZeroScore = Decimal(string: "0.40")!
+        })
+        let harsh = LadderEngine.score(snapshot {
+            $0.debtServiceRatio = Decimal(string: "0.20")!
+            $0.debtServiceZeroScore = Decimal(string: "0.20")!
+        })
+        #expect(standard.components.first { $0.name == "Debt service" }?.earned == 10)
+        #expect(harsh.components.first { $0.name == "Debt service" }?.earned == 0)
+    }
+
+    @Test func aZeroCurveFallsBackRatherThanDividingByZero() {
+        let broken = LadderEngine.score(snapshot {
+            $0.debtServiceZeroScore = 0
+            $0.runwayFullMarksMonths = 0
+        })
+        #expect(broken.total >= 0)
+        #expect(broken.available == 100)
+    }
+}
