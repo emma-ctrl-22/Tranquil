@@ -1,0 +1,81 @@
+# ── Build output ───────────────────────────────────────────────────────────────
+# Local build products. This directory alone is ~534 MB and is entirely
+# reproducible from source, so it must never be committed.
+build/
+DerivedData/
+*.o
+*.dia
+*.swiftdeps
+*.swiftconstvalues
+*.stringsdata
+
+# ── Xcode ──────────────────────────────────────────────────────────────────────
+# Per-user state: window positions, breakpoints, which scheme you last picked.
+# Nothing here is shared, and it changes on almost every launch.
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.perspectivev3
+*.pbxuser
+*.mode1v3
+*.mode2v3
+
+# Shared schemes are kept — they define how the project is built and tested.
+# (MyFinances.xcodeproj/xcshareddata/ is deliberately not ignored.)
+
+# ── Swift Package Manager ──────────────────────────────────────────────────────
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# ── Signing and provisioning ───────────────────────────────────────────────────
+# Certificates and profiles are per-machine and must never be shared.
+# The .entitlements files ARE committed: they describe what the app is allowed to
+# do, which is part of the source, and they contain no secrets.
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.cer
+*.certSigningRequest
+
+# ── macOS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# ── Editors ────────────────────────────────────────────────────────────────────
+.idea/
+*.swp
+*~
+.vscode/
+!.vscode/settings.json
+
+# ── Local scratch ──────────────────────────────────────────────────────────────
+# Anything you are experimenting with, kept out of the way.
+scratch/
+*.local
+*.log
+
+# ── Never commit real financial data ───────────────────────────────────────────
+# The database lives in the app's sandbox container, not here — but exports,
+# backups and fixtures made from real figures could easily land in the working
+# directory by accident.
+*.store
+*.store-shm
+*.store-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+TranquilBackups/
+*-export.csv
+*-export.json
+tranquil-*.csv
+tranquil-*.json
