@@ -213,6 +213,51 @@ baseline. The allocation sheet itself is M7.5.
 10. **Stale recurring rules** are advanced to the window without emitting the missed
     occurrences. Replaying them would invent transactions that never happened.
 
-### Next — M5, Debt
-Loans, generated schedules, payments, payoff orders (avalanche, snowball, peace of mind,
-balanced), the extra-payment simulator and the planned-loan verdict.
+---
+
+## M5 — Debt ✅
+
+### What shipped
+
+**`Engines/LoanEngine`** — 30 tests, the most arithmetic-heavy engine in the app.
+- `power(_:_:)` does integer exponentiation in `Decimal`. No `pow`, no `Double`: a
+  compounding error at the fourth decimal becomes real money over eighteen months.
+- Amortising: `payment = P·r·(1+r)^n / ((1+r)^n − 1)` — the same formula without a
+  negative exponent. A zero rate degrades to an even split rather than dividing by zero.
+- Flat rate: `total = P(1 + rate·years)`. Interest-free: `P / n`.
+- **Every schedule's principal sums exactly to the amount borrowed.** The final
+  instalment absorbs the rounding; ₵1,000.01 over 7 payments loses nothing.
+- Schedules carry a guard rail: a payment that cannot cover the interest ends the
+  schedule instead of looping forever.
+- Four payoff orders. Balanced scores
+  `w1·normAPR + w2·(social/5) + w3·smallBalanceBonus + w4·urgency`, weights editable,
+  ties broken deterministically.
+- A **receivable is never in the payoff queue** (R11).
+- `simulateExtra` — payoff date moves from A to B, saving Y.
+- `verdict(...)` — debt-service ratio with its arithmetic; above the cap it is
+  **Not affordable** and blocked (R4), and borrowing while toxic debt is outstanding
+  raises R1. Zero income reads as ratio 1, never as "comfortable".
+
+**Debt screen** — totals, a strategy picker that states what each order costs relative to
+Avalanche, loan cards with progress and payoff date, a schedule table, the extra-payment
+simulator, and a receivables section kept out of net worth.
+
+**Planned-loan sheet** — type an amount, rate and term and get the verdict before signing,
+with the alternative the spec insists on: saving the same amount instead, and how long
+that takes.
+
+### Bug the tests caught
+Early settlement on a **flat-rate** loan was dropping the unpaid interest, making the
+simulator claim savings that do not exist. On a flat-rate loan the interest is fixed at
+signing — paying early shortens the term and saves nothing. The settling instalment now
+carries all interest still owed, and the UI says so plainly.
+
+### Assumptions added
+11. **Revolving credit** is projected on the same reducing-balance schedule as an
+    amortising loan over its term. Real revolving debt has no fixed schedule; treating it
+    as amortising gives an honest payoff estimate if you stop borrowing on it.
+12. **Verdict bands** — under 15% comfortable, 15–30% tight, above the configured cap not
+    affordable. The 15% line is from BUILD_PROMPT F7; the cap is a setting.
+
+### Next — M6, Goals
+Earmarks, the allocation waterfall, the ETA engine, wishlist, overspend ledger, cool-off.

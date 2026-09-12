@@ -254,8 +254,11 @@ nonisolated enum LoanEngine {
 
     // MARK: - Position
 
-    struct Position: Sendable {
+    struct Position: Identifiable, Sendable {
         let loan: LoanInput
+
+        var id: UUID { loan.id }
+
         let schedule: Schedule
         let remainingBalance: Money
         let interestRemaining: Money

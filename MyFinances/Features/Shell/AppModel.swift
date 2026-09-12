@@ -43,7 +43,7 @@ final class AppModel {
         /// Screens that arrive in later milestones are shown but marked.
         var isAvailable: Bool {
             switch self {
-            case .dashboard, .ledger, .accounts, .plan: true
+            case .dashboard, .ledger, .accounts, .plan, .debt: true
             default: false
             }
         }

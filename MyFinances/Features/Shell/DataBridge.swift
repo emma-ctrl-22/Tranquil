@@ -81,6 +81,21 @@ enum DataBridge {
         )
     }
 
+    static func loan(_ loan: Loan) -> LoanEngine.LoanInput {
+        let payments = (loan.payments ?? []).filter { $0.deletedAt == nil }
+        return LoanEngine.LoanInput(
+            id: loan.id, name: loan.name, lender: loan.lender, direction: loan.direction,
+            principal: loan.principal, interestModel: loan.interestModel,
+            startDate: loan.startDate, termMonths: loan.termMonths,
+            paymentFrequency: loan.paymentFrequency, socialWeight: loan.socialWeight,
+            status: loan.status,
+            paidPrincipal: Money.sum(payments.map(\.principalPortion)),
+            paidInterest: Money.sum(payments.map(\.interestPortion)),
+            paymentsMade: payments.count,
+            lateCount: payments.filter(\.isLate).count
+        )
+    }
+
     static func record(_ earmark: Earmark) -> BalanceEngine.EarmarkRecord {
         BalanceEngine.EarmarkRecord(
             id: earmark.id,

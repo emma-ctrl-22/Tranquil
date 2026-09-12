@@ -88,6 +88,9 @@ struct RootView: View {
         case .plan:
             PlanView(model: $model, transactions: transactions,
                      formatter: formatter, calendar: calendar)
+        case .debt:
+            DebtView(model: $model, formatter: formatter, calendar: calendar,
+                     settings: settings)
         default:
             ComingSoonView(screen: model.screen)
         }
