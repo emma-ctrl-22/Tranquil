@@ -18,6 +18,10 @@ struct RootView: View {
     @Query(filter: #Predicate<DailyLog> { $0.deletedAt == nil },
            sort: \DailyLog.date, order: .reverse)
     private var dailyLogs: [DailyLog]
+    @Query(filter: #Predicate<Budget> { $0.deletedAt == nil })
+    private var budgets: [Budget]
+    @Query(filter: #Predicate<RecurringRule> { $0.deletedAt == nil })
+    private var rules: [RecurringRule]
     @Query private var settingsRows: [AppSettings]
 
     private var settings: AppSettings? { settingsRows.first }
@@ -72,12 +76,16 @@ struct RootView: View {
         case .dashboard:
             DashboardView(model: $model, balances: balances, transactions: transactions,
                           settings: settings, formatter: formatter, calendar: calendar,
-                          lastReconciledOn: lastReconciledOn)
+                          lastReconciledOn: lastReconciledOn,
+                          budgets: budgets, rules: rules)
         case .accounts:
             AccountsView(model: $model, balances: balances, formatter: formatter)
         case .ledger:
             LedgerView(model: $model, transactions: transactions,
                        formatter: formatter, calendar: calendar)
+        case .plan:
+            PlanView(model: $model, transactions: transactions,
+                     formatter: formatter, calendar: calendar)
         default:
             ComingSoonView(screen: model.screen)
         }

@@ -11,6 +11,8 @@ struct DashboardView: View {
     let formatter: MoneyFormatter
     let calendar: FinancialCalendar
     let lastReconciledOn: Date?
+    let budgets: [Budget]
+    let rules: [RecurringRule]
 
     private var totals: BalanceEngine.Totals { BalanceEngine.totals(for: balances) }
     private var records: [BalanceEngine.TransactionRecord] { transactions.map(DataBridge.record) }
@@ -22,6 +24,42 @@ struct DashboardView: View {
     }
     private var belowFloor: [BalanceEngine.AccountBalance] {
         balances.filter { $0.isBelowFloor && !$0.account.isArchived }
+    }
+
+    private var elapsed: Int { calendar.elapsedDaysInWeek(containing: calendar.currentDate()) }
+    private var daysInMonth: Int { calendar.daysInMonth(containing: calendar.currentDate()) }
+
+    private var commitments: [BudgetEngine.CommitmentInput] {
+        rules.filter { $0.isCommittedOutflow && !$0.isArchived }.map(DataBridge.commitment)
+    }
+
+    /// The number actually looked at.
+    private var freeToSpend: BudgetEngine.FreeToSpend {
+        BudgetEngine.freeToSpend(
+            expectedIncomeThisWeek: BudgetEngine.weeklyFromMonthly(
+                settings?.expectedMonthlyNetIncome ?? .zero
+            ),
+            commitments: commitments,
+            // Goal allocations arrive with M6; until then nothing is reserved for them.
+            goalAllocationsThisWeek: .zero,
+            alreadySpentThisWeek: spentThisWeek
+        )
+    }
+
+    private var envelopeStates: [BudgetEngine.EnvelopeState] {
+        budgets.map { budget in
+            let ids = budget.category.map { Set([$0.id]) }
+            return BudgetEngine.state(
+                for: DataBridge.envelope(budget),
+                spent: BalanceEngine.spend(transactions: records, in: week, categoryIDs: ids),
+                elapsedDaysInWeek: elapsed,
+                daysInMonth: daysInMonth
+            )
+        }
+    }
+
+    private var envelopesAheadOfPace: [BudgetEngine.EnvelopeState] {
+        envelopeStates.filter { $0.isAheadOfPace || $0.isOverspent }
     }
 
     private var todaysTransactions: [Transaction] {
@@ -51,18 +89,19 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: Theme.Space.md) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                        SectionLabel(text: "Available to spend")
-                        Text(formatter.string(totals.liquidAvailable))
+                        SectionLabel(text: heroLabel)
+                        Text(formatter.string(heroAmount))
                             .font(Theme.Font.hero)
-                            .foregroundStyle(totals.liquidAvailable.isNegative
+                            .foregroundStyle(heroAmount.isNegative
                                              ? Theme.Palette.negative : .primary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
-                            .accessibilityLabel("Available to spend")
-                            .accessibilityValue(formatter.accessibleString(totals.liquidAvailable))
-                        Text(availabilityExplanation)
+                            .accessibilityLabel(heroLabel)
+                            .accessibilityValue(formatter.accessibleString(heroAmount))
+                        Text(heroExplanation)
                             .font(Theme.Font.caption)
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: Theme.Space.sm) {
@@ -100,10 +139,27 @@ struct DashboardView: View {
         }
     }
 
-    private var availabilityExplanation: String {
-        totals.earmarkedTotal.isZero
-            ? "Liquid balances across every spendable account"
-            : "Liquid balances minus what is earmarked"
+    /// Once there are commitments to come off the top, free-to-spend is the honest
+    /// headline. Before that it would just repeat the available balance.
+    private var showsFreeToSpend: Bool { !commitments.isEmpty }
+
+    private var heroLabel: String {
+        showsFreeToSpend ? "Free to spend this week" : "Available to spend"
+    }
+
+    private var heroAmount: Money {
+        showsFreeToSpend ? freeToSpend.amount : totals.liquidAvailable
+    }
+
+    private var heroExplanation: String {
+        guard showsFreeToSpend else {
+            return totals.earmarkedTotal.isZero
+                ? "Liquid balances across every spendable account"
+                : "Liquid balances minus what is earmarked"
+        }
+        return "\(formatter.string(freeToSpend.expectedIncome)) expected, less "
+            + "\(formatter.string(freeToSpend.committedOutflows)) committed and "
+            + "\(formatter.string(freeToSpend.alreadySpent)) already spent"
     }
 
     private var reconcileTitle: String {
@@ -125,7 +181,8 @@ struct DashboardView: View {
         let needsReconcile = BalanceEngine.needsReconciliation(
             lastReconciledOn: lastReconciledOn, today: calendar.today(), calendar: calendar
         ) && !balances.isEmpty
-        if !overCommitted.isEmpty || !belowFloor.isEmpty || needsReconcile {
+        if !overCommitted.isEmpty || !belowFloor.isEmpty || needsReconcile
+            || !envelopesAheadOfPace.isEmpty {
             VStack(spacing: Theme.Space.sm) {
                 ForEach(overCommitted) { entry in
                     // The invariant is surfaced, never silently rebalanced.
@@ -146,6 +203,17 @@ struct DashboardView: View {
                         title: reconcileTitle,
                         detail: "Count what is actually in one account and check it against the "
                               + "ledger. Small gaps compound quietly."
+                    )
+                }
+                ForEach(envelopesAheadOfPace) { state in
+                    NoticeRow(
+                        tone: state.isOverspent ? .negative : .caution,
+                        icon: "speedometer",
+                        title: state.isOverspent
+                            ? "\(state.name) is over budget"
+                            : "\(state.name) is ahead of pace",
+                        detail: "\(formatter.string(state.spent)) of "
+                              + "\(formatter.string(state.budget)) on day \(elapsed) of 7."
                     )
                 }
                 ForEach(belowFloor) { entry in
@@ -169,17 +237,37 @@ struct DashboardView: View {
                 SectionLabel(text: "This week")
                 Text(weekRangeText).font(Theme.Font.caption).foregroundStyle(.secondary)
                 Divider().opacity(0.4)
-                if spentThisWeek.isZero {
-                    Text("Nothing logged this week yet.")
+                if envelopeStates.isEmpty {
+                    Text(spentThisWeek.isZero
+                         ? "Nothing logged this week yet."
+                         : "\(formatter.string(spentThisWeek)) spent. Set up envelopes in Plan "
+                           + "to see pace.")
                         .font(Theme.Font.caption)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.vertical, Theme.Space.sm)
                 } else {
-                    Text(formatter.string(spentThisWeek))
-                        .font(Theme.Font.figure)
-                    Text("Envelopes and the burn meter arrive in M3.")
-                        .font(Theme.Font.caption)
-                        .foregroundStyle(.tertiary)
+                    ForEach(envelopeStates.sorted { ($0.paceDelta ?? 0) > ($1.paceDelta ?? 0) }
+                        .prefix(5)) { state in
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack {
+                                Text(state.name).font(.system(size: 11.5))
+                                Spacer()
+                                Text(formatter.string(state.remaining))
+                                    .font(Theme.Font.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            MeterBar(
+                                fraction: state.burn.map {
+                                    NSDecimalNumber(decimal: $0).doubleValue } ?? 0,
+                                expected: NSDecimalNumber(
+                                    decimal: state.expectedFraction).doubleValue,
+                                tone: state.isOverspent ? .negative
+                                      : (state.isAheadOfPace ? .caution : .positive),
+                                height: 5
+                            )
+                        }
+                    }
                 }
             }
         }

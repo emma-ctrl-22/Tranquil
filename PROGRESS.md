@@ -134,6 +134,44 @@ the app makes no network calls of any kind.
 - Only the daily nudge is scheduled live. The other fourteen rules are defined and
   tested, and get switched on as their data arrives in M3–M7.
 
-### Next — M3, Budgets
-Weekly envelopes, the first-class Miscellaneous envelope, burn meters, free-to-spend,
-and rollover capped at 2x.
+---
+
+## M3 — Budgets ✅
+
+### What shipped
+
+**`Engines/BudgetEngine`** — 24 tests, every expected value hand-checked.
+- `weeklyBudget` — a weekly envelope is its own pace; a monthly one shows
+  `monthly x 7 / daysInMonth`, so ₵310/month is ₵70 a week in a 31-day month and
+  ₵77.50 in February.
+- `burn = spent / budget`, `expected = elapsedDays / 7`, alert when the gap exceeds 0.25.
+  Exactly 0.25 does **not** alert — the spec says greater than.
+- An envelope with no budget has `burn == nil` and is never "ahead of pace", rather than
+  dividing by zero.
+- Rollover capped at `base x capMultiple` (2x by default). Overspending does not create a
+  debt that follows you into next week.
+- `weeklyCommitted` prorates by cadence: ₵900/month rent is ₵207.69 a week, a ₵520
+  annual renewal is ₵10.
+- `freeToSpend = expectedIncome − committed − goalAllocations − alreadySpent`, reported
+  honestly when negative.
+- `medianWeeklyIncome` — median, never mean, so one good month cannot inflate every
+  projection.
+
+**Plan screen** — envelope cards with a burn meter and a pace marker showing where you
+*should* be, committed-outflows card, and an envelope editor.
+
+**Dashboard** — the hero becomes **Free to spend this week** once there are commitments
+to come off the top, showing its arithmetic underneath. Envelopes ahead of pace surface
+as neutral notices; the week card shows the five envelopes furthest ahead of pace.
+
+**Anti-creep ratchet (§4b), early** — raising an envelope requires a typed reason, stored
+on the budget with its date. Envelopes never rise on their own.
+
+### Assumption added
+8. **Dashboard hero** — shows *available to spend* until committed outflows exist, then
+   switches to *free to spend this week*. Before there are commitments the two are the
+   same number, and the simpler label is the honest one.
+
+### Next — M4, Forward view
+Recurring rules, committed outflows, scheduled events, sinking funds and the 60-day
+cash-flow calendar.
