@@ -22,6 +22,7 @@ enum TranquilSchema {
         DailyLog.self,
         LadderState.self,
         BalanceSnapshot.self,
+        Valuation.self,
     ]
 
     static var schema: Schema { Schema(models) }

@@ -34,6 +34,9 @@ struct RootView: View {
     private var overrides: [OverrideLog]
     @Query(filter: #Predicate<IncomeEvent> { $0.deletedAt == nil })
     private var incomeEvents: [IncomeEvent]
+    @Query(filter: #Predicate<Valuation> { $0.deletedAt == nil },
+           sort: \Valuation.date, order: .reverse)
+    private var valuations: [Valuation]
     @Query private var settingsRows: [AppSettings]
 
     private var settings: AppSettings? { settingsRows.first }
@@ -83,6 +86,12 @@ struct RootView: View {
             bootstrapIfNeeded()
             runNotificationRules()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            model.open(.settings)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .quickAdd)) { _ in
+            model.isQuickAddShown = true
+        }
         .background {
             // Keyboard navigation: one shortcut per screen, always available.
             ForEach(Array(AppModel.Screen.allCases.enumerated()), id: \.element) { index, screen in
@@ -109,7 +118,9 @@ struct RootView: View {
                           ladder: ladderEvaluation,
                           advisorPosition: AdvisorEngine.position(advisorSituation),
                           unallocatedWindfalls: incomeEvents.filter { $0.status == .unallocated },
-                          creep: creepVerdict, streaks: streakSummary,
+                          creep: creepVerdict, salaryCheck: salaryCheck,
+                          investments: investmentSummary,
+                          streaks: streakSummary,
                           microSpendThisMonth: InsightsEngine.microSpendTotal(categoryTotals))
         case .accounts:
             AccountsView(model: $model, balances: balances, formatter: formatter)
@@ -132,14 +143,29 @@ struct RootView: View {
             ReviewView(weekly: weeklyReview, monthly: monthlyReview, formatter: formatter)
         case .income:
             IncomeView(model: $model, formatter: formatter, calendar: calendar,
-                       settings: settings, creep: creepVerdict, taxReserved: taxReserved)
+                       settings: settings, creep: creepVerdict, taxReserved: taxReserved,
+                       salaryCheck: salaryCheck)
         case .advisor:
             AdvisorView(model: $model, situation: advisorSituation,
                         letter: monthlyLetter, formatter: formatter)
         case .help:
             HelpView(model: $model, formatter: formatter)
+        case .settings:
+            SettingsView()
+        case .investments:
+            InvestmentsView(model: $model, formatter: formatter, calendar: calendar,
+                            summary: investmentSummary,
+                            contributionMonths: investmentContributionMonths,
+                            contributionRate: investmentContributionRate)
         case .help:
             HelpView(model: $model, formatter: formatter)
+        case .settings:
+            SettingsView()
+        case .investments:
+            InvestmentsView(model: $model, formatter: formatter, calendar: calendar,
+                            summary: investmentSummary,
+                            contributionMonths: investmentContributionMonths,
+                            contributionRate: investmentContributionRate)
         case .insights:
             InsightsView(model: $model, formatter: formatter, calendar: calendar,
                          cells: heatmapCells, streaks: streakSummary,
@@ -192,6 +218,64 @@ struct RootView: View {
     /// The most recent financial day on which any account was reconciled.
     private var lastReconciledOn: Date? {
         dailyLogs.first { $0.wasReconciled }?.date
+    }
+
+    // MARK: - Investments
+
+    /// Contributed principal comes from the ledger; current value only from what the
+    /// user has entered. The app never invents the second number.
+    private var investmentSummary: InvestmentEngine.Summary {
+        let records = transactions.map(DataBridge.record)
+        let holdings = accounts
+            .filter { $0.type == .investment && !$0.isArchived }
+            .map { account -> InvestmentEngine.Holding in
+                var contributed = account.openingBalance
+                for record in records {
+                    contributed += BalanceEngine.effect(of: record, on: account.id)
+                }
+                let latest = valuations.first { $0.account?.id == account.id }
+                return InvestmentEngine.Holding(
+                    accountID: account.id, name: account.name, colorHex: account.colorHex,
+                    contributed: contributed,
+                    currentValue: latest?.value, valuedOn: latest?.date
+                )
+            }
+        return InvestmentEngine.Summary(holdings: holdings)
+    }
+
+    private var investmentAccountIDs: Set<UUID> {
+        Set(accounts.filter { $0.type == .investment }.map(\.id))
+    }
+
+    private var investmentContributionMonths: Int {
+        let records = transactions.map(DataBridge.record)
+        var months: Set<Date> = []
+        for record in records where record.kind == .transfer {
+            guard let destination = record.counterAccountID,
+                  investmentAccountIDs.contains(destination) else { continue }
+            months.insert(calendar.startOfMonth(containing: record.date))
+        }
+        return InvestmentEngine.contributionStreak(
+            contributionMonths: months, months: 12, today: calendar.today(), calendar: calendar
+        )
+    }
+
+    private var investmentContributionRate: Decimal? {
+        let records = transactions.map(DataBridge.record)
+        let today = calendar.today()
+        let year = DateInterval(start: calendar.addMonths(-12, to: today),
+                                end: calendar.addDays(1, to: today))
+        var contributed = Money.zero
+        for record in records where record.kind == .transfer {
+            guard let destination = record.counterAccountID,
+                  investmentAccountIDs.contains(destination),
+                  year.start <= record.date, record.date < year.end else { continue }
+            contributed += record.amount
+        }
+        return InvestmentEngine.contributionRate(
+            contributed: contributed,
+            netIncome: BalanceEngine.income(transactions: records, in: year)
+        )
     }
 
     // MARK: - Insights
@@ -273,6 +357,22 @@ struct RootView: View {
     }
 
     // MARK: - Income and advisor
+
+    /// What actually arrived this month against what the settings say you earn.
+    private var salaryCheck: IncomeEngine.SalaryCheck {
+        let month = calendar.monthInterval(containing: calendar.currentDate())
+        let received = BalanceEngine.income(transactions: transactions.map(DataBridge.record),
+                                            in: month)
+        let payDay = settings?.salaryDayOfMonth ?? 28
+        let dayOfMonth = calendar.calendar.component(
+            .day, from: calendar.calendarMidnight(of: calendar.today())
+        )
+        return IncomeEngine.salaryCheck(
+            expectedMonthly: settings?.expectedMonthlyNetIncome ?? .zero,
+            receivedThisMonth: received,
+            payDayPassed: dayOfMonth >= payDay
+        )
+    }
 
     private var taxReserved: Money {
         BalanceEngine.totals(for: balances).taxReserved
@@ -508,6 +608,14 @@ struct RootView: View {
             }
             .keyboardShortcut("t", modifiers: .command)
             .help("Move money between accounts (⌘T)")
+
+            Button {
+                model.open(.settings)
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+            .keyboardShortcut(",", modifiers: .command)
+            .help("Settings (⌘,)")
 
             Button {
                 model.isInspectorShown.toggle()

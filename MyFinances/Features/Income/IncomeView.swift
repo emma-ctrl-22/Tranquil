@@ -11,6 +11,7 @@ struct IncomeView: View {
     let settings: AppSettings?
     let creep: IncomeEngine.CreepVerdict
     let taxReserved: Money
+    let salaryCheck: IncomeEngine.SalaryCheck
 
     @Query(filter: #Predicate<IncomeEvent> { $0.deletedAt == nil },
            sort: \IncomeEvent.receivedAt, order: .reverse)
@@ -31,6 +32,8 @@ struct IncomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Space.md) {
+                SalaryCheckCard(check: salaryCheck, settings: settings,
+                                formatter: formatter, calendar: calendar)
                 inbox
                 if !taxReserved.isZero { taxCard }
                 if !clientRates.isEmpty { hourlyCard }

@@ -492,6 +492,54 @@ zero.
 quick-capture examples, the vocabulary, what each screen is for, the Ladder, the Advisor,
 keyboard shortcuts, and where the data lives.
 
+**Settings is a screen, not a window.** The app runs as a menu bar agent, which has no
+menu bar for ⌘, to hang off — the `Settings` scene was effectively unreachable. It now
+lives in the sidebar under Setup, with ⌘, and a toolbar button, and the status item's
+Settings command opens the main window there.
+
+**Monthly salary check** — 7 tests. Compares what actually arrived against the figure in
+Settings, with a 1% tolerance so ordinary pay wobble is not a monthly prompt. More than
+expected is treated as a rise and records an `IncomeEvent` for the §4b ratchet; less is
+flagged but never ratchets. Before pay day a shortfall reads "not due yet", not a problem.
+Surfaced on the Income screen with confirm/decline, and as a dashboard notice.
+
+---
+
+## M10 — The gaps you found
+
+Things the engines supported but nothing in the UI could actually do.
+
+**Record a loan payment** — Debt → right-click a loan → Record a payment. Writes a
+`LoanPayment` (the debt going down, split into principal and interest) **and** a
+`Transaction` (the money leaving the account), linked to each other. "Clear it" fills in
+the full settlement figure; clearing marks the loan paid and drops it out of the payoff
+order. Nothing is deleted — the loan and every payment stay in the records.
+
+**Post a due recurring rule** — Plan → Scheduled → Paid / Received. Writes the entry and
+rolls the rule on to its next date, month-end clamped. A variable bill learns its latest
+amount. "Skip this one" advances without writing anything, because a bill you were
+reminded about but did not pay must not appear as though you had.
+
+**Investments** — a new `Valuation` model and `InvestmentEngine` (8 tests). Contributed
+principal comes from the ledger; current value only ever from what you type. An unvalued
+holding has **no gain**, not a gain of zero, and the portfolio total falls back to
+contributed rather than treating it as worthless. Asks again after 30 days. Contribution
+streak counts months, never amounts. The emergency fund sits on the same screen.
+
+**Settings layout** — tabs moved to the top as a segmented control, content left-aligned
+in a scroll view instead of floating in the middle of a fixed-size window.
+
+**Help** — a new "Where things go" section covering rent, bills, project income, gifts,
+refunds, loan payoffs, transfers and funds, including the worked example of paying a loan
+out of a project payment.
+
+### Schema note
+`Valuation` is additive, so SwiftData migrates it automatically. No existing data changes.
+
+### Assumption added
+22. **Valuations go stale after 30 days.** Funds report monthly; asking more often is
+    noise. An account with money in it and no valuation at all is always asked.
+
 ### Still hardcoded on purpose
 Notification times and cooldowns (they live in `NotificationRules` as declarative data),
 the payoff-order scoring weights (editable in code via `LoanEngine.Weights`, no UI yet),
@@ -501,6 +549,6 @@ and the heatmap intensity ramps.
 
 ## All milestones complete
 
-340 tests, 0 failures, no warnings. Remaining known gaps are listed under each milestone's
+355 tests, 0 failures, no warnings. Remaining known gaps are listed under each milestone's
 "what is stubbed"; the largest are `monthsAllStagesHeld` (needs recorded history before
 Ladder stage 7 can be reached) and notification inline-action handlers.

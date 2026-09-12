@@ -162,6 +162,57 @@ nonisolated enum IncomeEngine {
         return SalaryRise(previous: previous, current: current)
     }
 
+    // MARK: - Monthly salary check
+
+    /// Did the money that actually arrived match what you said you earn?
+    ///
+    /// Worth checking every month: a baseline that has quietly drifted makes
+    /// free-to-spend, every goal ETA and every loan verdict wrong in the same direction.
+    struct SalaryCheck: Sendable {
+        let expected: Money
+        let received: Money
+        let payDayPassed: Bool
+
+        /// Positive when more arrived than expected.
+        var difference: Money { received - expected }
+
+        var status: Status {
+            if !payDayPassed && received < expected { return .notYetDue }
+            if received.isZero { return .nothingReceived }
+            if difference.isZero { return .matches }
+            // Small rounding noise is not a discrepancy worth raising.
+            if difference.magnitude <= tolerance { return .matches }
+            return difference.isPositive ? .more : .less
+        }
+
+        /// ASSUMPTION: differences at or under 1% of expected pay are treated as a match.
+        /// Pay varies by a few pesewas for reasons that are not worth a monthly prompt.
+        var tolerance: Money {
+            expected.scaled(by: Decimal(string: "0.01")!)
+        }
+
+        var needsConfirmation: Bool {
+            switch status {
+            case .more, .less, .nothingReceived: true
+            case .matches, .notYetDue: false
+            }
+        }
+
+        /// Only an increase is a rise; a short month is not a pay cut to ratchet against.
+        var isRise: Bool { status == .more }
+
+        enum Status: Sendable {
+            case matches, more, less, nothingReceived, notYetDue
+        }
+    }
+
+    static func salaryCheck(
+        expectedMonthly: Money, receivedThisMonth: Money, payDayPassed: Bool
+    ) -> SalaryCheck {
+        SalaryCheck(expected: expectedMonthly, received: receivedThisMonth,
+                    payDayPassed: payDayPassed)
+    }
+
     // MARK: - Lifestyle creep
 
     struct CreepPoint: Identifiable, Sendable {

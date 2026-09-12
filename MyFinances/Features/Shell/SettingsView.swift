@@ -13,17 +13,71 @@ struct SettingsView: View {
 
     private var settings: AppSettings? { settingsRows.first }
 
-    var body: some View {
-        TabView {
-            general.tabItem { Label("General", systemImage: "gearshape") }
-            money.tabItem { Label("Money & time", systemImage: "banknote") }
-            thresholds.tabItem { Label("Thresholds", systemImage: "slider.horizontal.3") }
-            notifications.tabItem { Label("Notifications", systemImage: "bell") }
-            data.tabItem { Label("Data", systemImage: "externaldrive") }
-            security.tabItem { Label("Security", systemImage: "touchid") }
-            privacy.tabItem { Label("Privacy", systemImage: "lock") }
+    @State private var tab: Tab = .money
+
+    enum Tab: String, CaseIterable, Identifiable {
+        case money, thresholds, notifications, data, security, general
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .money: "Money & time"
+            case .thresholds: "Thresholds"
+            case .notifications: "Notifications"
+            case .data: "Data & backup"
+            case .security: "Security"
+            case .general: "General"
+            }
         }
-        .frame(width: 500, height: 420)
+        var icon: String {
+            switch self {
+            case .money: "banknote"
+            case .thresholds: "slider.horizontal.3"
+            case .notifications: "bell"
+            case .data: "externaldrive"
+            case .security: "lock"
+            case .general: "gearshape"
+            }
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $tab) {
+                ForEach(Tab.allCases) { option in
+                    Label(option.title, systemImage: option.icon).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, Theme.Space.lg)
+            .padding(.vertical, Theme.Space.sm)
+
+            Divider().opacity(0.5)
+
+            ScrollView {
+                content
+                    .frame(maxWidth: 620, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Theme.Space.lg)
+                    .padding(.vertical, Theme.Space.md)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch tab {
+        case .money: money
+        case .thresholds: thresholds
+        case .notifications: notifications
+        case .data: data
+        case .security: security
+        case .general:
+            VStack(alignment: .leading, spacing: Theme.Space.md) {
+                general
+                privacy
+            }
+        }
     }
 
     private var general: some View {
@@ -45,7 +99,7 @@ struct SettingsView: View {
                 .font(Theme.Font.caption).foregroundStyle(.secondary)
 
         }
-        .formStyle(.grouped)
+        .formStyle(.grouped).scrollDisabled(true).frame(minHeight: 240)
     }
 
     // MARK: - Money and time
@@ -114,7 +168,7 @@ struct SettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .formStyle(.grouped)
+            .formStyle(.grouped).scrollDisabled(true).frame(minHeight: 240)
         }
     }
 
@@ -167,7 +221,7 @@ struct SettingsView: View {
 
                 Button("Reset thresholds to defaults", action: resetThresholds)
             }
-            .formStyle(.grouped)
+            .formStyle(.grouped).scrollDisabled(true).frame(minHeight: 240)
         }
     }
 
@@ -284,7 +338,7 @@ struct SettingsView: View {
                                value: "\(settings.quietHoursStartHour):00 – "
                                     + "\(settings.quietHoursEndHour):00")
             }
-            .formStyle(.grouped)
+            .formStyle(.grouped).scrollDisabled(true).frame(minHeight: 240)
         }
     }
 
@@ -325,7 +379,7 @@ struct SettingsView: View {
 
             if let status { Text(status).font(Theme.Font.caption).foregroundStyle(.secondary) }
         }
-        .formStyle(.grouped)
+        .formStyle(.grouped).scrollDisabled(true).frame(minHeight: 240)
     }
 
     // MARK: - Security
@@ -354,7 +408,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .formStyle(.grouped)
+        .formStyle(.grouped).scrollDisabled(true).frame(minHeight: 240)
     }
 
     // MARK: - Actions
@@ -498,6 +552,6 @@ struct SettingsView: View {
             }
             .padding(.vertical, Theme.Space.xs)
         }
-        .formStyle(.grouped)
+        .formStyle(.grouped).scrollDisabled(true).frame(minHeight: 240)
     }
 }

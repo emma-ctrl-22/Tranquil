@@ -9,6 +9,8 @@ final class AppModel {
         case dashboard, ledger, accounts, plan, debt, income, advisor, goals, insights, ladder
         case review
         case help
+        case settings
+        case investments
 
         var id: String { rawValue }
 
@@ -26,6 +28,8 @@ final class AppModel {
             case .ladder: "Ladder"
             case .review: "Review"
             case .help: "How to use this"
+            case .settings: "Settings"
+            case .investments: "Investments"
             }
         }
 
@@ -43,6 +47,8 @@ final class AppModel {
             case .ladder: "stairs"
             case .review: "doc.text"
             case .help: "questionmark.circle"
+            case .settings: "gearshape"
+            case .investments: "chart.line.uptrend.xyaxis"
             }
         }
 
@@ -50,7 +56,7 @@ final class AppModel {
         var isAvailable: Bool {
             switch self {
             case .dashboard, .ledger, .accounts, .plan, .debt, .goals, .ladder, .review,
-             .income, .advisor, .insights, .help: true
+             .income, .advisor, .insights, .help, .settings, .investments: true
             default: false
             }
         }

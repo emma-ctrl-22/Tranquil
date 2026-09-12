@@ -4,6 +4,7 @@ import AppKit
 
 extension Notification.Name {
     static let quickAdd = Notification.Name("tranquil.quickAdd")
+    static let openSettings = Notification.Name("tranquil.openSettings")
 }
 
 /// The store, created once and shared by the SwiftUI scenes and the status item.
@@ -154,9 +155,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// An accessory app has no menu bar, so `showSettingsWindow:` has nothing to hang
+    /// off. Settings is a screen inside the main window instead.
     @objc private func openSettings() {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        openMainWindow()
+        NotificationCenter.default.post(name: .openSettings, object: nil)
     }
 
     // MARK: - Daily nudge

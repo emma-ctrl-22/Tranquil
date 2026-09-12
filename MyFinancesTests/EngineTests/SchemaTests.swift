@@ -24,7 +24,7 @@ struct SchemaTests {
 
     @Test func everyModelTypeIsRegistered() {
         // A model missing from the registry silently fails to persist, so guard the count.
-        #expect(TranquilSchema.models.count == 18)
+        #expect(TranquilSchema.models.count == 19)
     }
 
     @Test func transferIsOneRecordAffectingBothSides() throws {

@@ -21,6 +21,8 @@ struct DashboardView: View {
     let advisorPosition: AdvisorEngine.Position
     let unallocatedWindfalls: [IncomeEvent]
     let creep: IncomeEngine.CreepVerdict
+    let salaryCheck: IncomeEngine.SalaryCheck
+    let investments: InvestmentEngine.Summary
     let streaks: InsightsEngine.StreakSummary
     let microSpendThisMonth: Money
 
@@ -219,6 +221,20 @@ struct DashboardView: View {
                            + advisorPosition.step.title
         ))
 
+        if !investments.holdings.isEmpty {
+            let stale = investments.needingValuation(today: calendar.today(),
+                                                     calendar: calendar)
+            items.append(ModuleStrip.Item(
+                id: "investments", screen: .investments, label: "Invested",
+                value: formatter.string(investments.totalValue),
+                detail: stale.isEmpty
+                    ? "\(formatter.string(investments.totalContributed)) put in"
+                    : "\(stale.count) holding(s) need a fresh value",
+                tone: stale.isEmpty ? .neutral : .caution,
+                accessibleValue: formatter.accessibleString(investments.totalValue)
+            ))
+        }
+
         items.append(ModuleStrip.Item(
             id: "ladder", screen: .ladder, label: "Stability",
             value: "\(ladder.stabilityScore.total)",
@@ -251,6 +267,21 @@ struct DashboardView: View {
         ))
 
         return items
+    }
+
+    private var salaryCheckTitle: String {
+        switch salaryCheck.status {
+        case .more:
+            return "\(formatter.string(salaryCheck.difference.magnitude)) more pay arrived "
+                 + "than expected"
+        case .less:
+            return "\(formatter.string(salaryCheck.difference.magnitude)) less pay arrived "
+                 + "than expected"
+        case .nothingReceived:
+            return "Pay day has passed with no income logged"
+        default:
+            return "Check this month's pay"
+        }
     }
 
     private var scoreTone: StatTile.Tone {
@@ -398,7 +429,10 @@ struct DashboardView: View {
         ) && !balances.isEmpty
         if !overCommitted.isEmpty || !belowFloor.isEmpty || needsReconcile
             || !envelopesAheadOfPace.isEmpty || projection.firstNegativeDay != nil
-            || !toxicLoans.isEmpty || !unallocatedWindfalls.isEmpty || creep.isCreeping {
+            || !toxicLoans.isEmpty || !unallocatedWindfalls.isEmpty || creep.isCreeping
+            || salaryCheck.needsConfirmation
+            || !investments.needingValuation(today: calendar.today(),
+                                             calendar: calendar).isEmpty {
             VStack(spacing: Theme.Space.sm) {
                 ForEach(overCommitted) { entry in
                     // The invariant is surfaced, never silently rebalanced.
@@ -419,6 +453,27 @@ struct DashboardView: View {
                         title: reconcileTitle,
                         detail: "Count what is actually in one account and check it against the "
                               + "ledger. Small gaps compound quietly."
+                    )
+                }
+                if let stale = investments.needingValuation(today: calendar.today(),
+                                                            calendar: calendar).first {
+                    NoticeRow(
+                        tone: .caution,
+                        icon: "questionmark.circle",
+                        title: "What is \(stale.name) worth now?",
+                        detail: stale.valuedOn == nil
+                            ? "No value has been entered yet. Check your statement and put "
+                              + "the figure in — the app cannot look it up."
+                            : "It has been a month since you last checked."
+                    )
+                }
+                if salaryCheck.needsConfirmation {
+                    NoticeRow(
+                        tone: salaryCheck.isRise ? .positive : .caution,
+                        icon: "questionmark.circle",
+                        title: salaryCheckTitle,
+                        detail: "Open Income to confirm it. Everything that reads your income "
+                              + "works from this number."
                     )
                 }
                 if !unallocatedWindfalls.isEmpty {

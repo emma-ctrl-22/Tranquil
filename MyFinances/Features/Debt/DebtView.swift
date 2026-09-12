@@ -16,6 +16,7 @@ struct DebtView: View {
     @State private var selectedLoanID: UUID?
     @State private var isCreatingLoan = false
     @State private var isPlanningLoan = false
+    @State private var payingLoanID: UUID?
 
     private var positions: [LoanEngine.Position] {
         loans.filter { $0.status != .planned }
@@ -71,6 +72,12 @@ struct DebtView: View {
                                      ?? Decimal(string: "0.25")!) {
                             selectedLoanID = position.loan.id
                         }
+                        .contextMenu {
+                            Button("Record a payment…") { payingLoanID = position.loan.id }
+                            Button("Schedule and simulator…") {
+                                selectedLoanID = position.loan.id
+                            }
+                        }
                     }
                     if !owedToMe.isEmpty { receivablesCard }
                 }
@@ -99,7 +106,18 @@ struct DebtView: View {
             set: { selectedLoanID = $0?.id }
         )) { wrapper in
             if let position = positions.first(where: { $0.loan.id == wrapper.id }) {
-                LoanDetailSheet(position: position, formatter: formatter, calendar: calendar)
+                LoanDetailSheet(position: position, formatter: formatter,
+                                calendar: calendar) {
+                    payingLoanID = position.loan.id
+                }
+            }
+        }
+        .sheet(item: Binding(
+            get: { payingLoanID.map { IdentifiedID(id: $0) } },
+            set: { payingLoanID = $0?.id }
+        )) { wrapper in
+            if let position = positions.first(where: { $0.loan.id == wrapper.id }) {
+                LoanPaymentSheet(position: position, formatter: formatter, calendar: calendar)
             }
         }
     }

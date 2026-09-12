@@ -9,6 +9,8 @@ struct LoanDetailSheet: View {
     let calendar: FinancialCalendar
 
     @State private var extraText = ""
+    @State private var isPaying = false
+    let onRecordPayment: () -> Void
 
     private var extra: Money { formatter.parse(extraText) ?? .zero }
 
@@ -31,6 +33,13 @@ struct LoanDetailSheet: View {
             }
             Divider().opacity(0.5)
             HStack {
+                if !position.isPaidOff && position.loan.direction == .iOwe {
+                    Button("Record a payment") {
+                        dismiss()
+                        onRecordPayment()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
                 Spacer()
                 Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
             }

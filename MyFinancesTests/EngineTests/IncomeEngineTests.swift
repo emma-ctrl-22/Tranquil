@@ -238,3 +238,65 @@ struct IncomeEngineTests {
         #expect(IncomeEngine.countsTowardIncome(.gift))
     }
 }
+
+/// The monthly check that what arrived matches what you said you earn.
+struct SalaryCheckTests {
+
+    private func check(expected: Int, received: Int, payDayPassed: Bool = true)
+    -> IncomeEngine.SalaryCheck {
+        IncomeEngine.salaryCheck(expectedMonthly: Money(minorUnits: expected),
+                                 receivedThisMonth: Money(minorUnits: received),
+                                 payDayPassed: payDayPassed)
+    }
+
+    @Test func anExactMatchNeedsNoConfirmation() {
+        let result = check(expected: 350_000, received: 350_000)
+        #expect(result.status == .matches)
+        #expect(!result.needsConfirmation)
+        #expect(result.difference.isZero)
+    }
+
+    @Test func smallRoundingNoiseCountsAsAMatch() {
+        // Pay wobbles by a few pesewas. Prompting monthly about that trains you to ignore it.
+        // 1% of ₵3,500 is ₵35.
+        #expect(check(expected: 350_000, received: 353_400).status == .matches)
+        #expect(check(expected: 350_000, received: 346_600).status == .matches)
+        #expect(check(expected: 350_000, received: 353_600).status == .more)
+        #expect(check(expected: 350_000, received: 346_400).status == .less)
+    }
+
+    @Test func moreThanExpectedIsARise() {
+        let result = check(expected: 350_000, received: 420_000)
+        #expect(result.status == .more)
+        #expect(result.needsConfirmation)
+        #expect(result.isRise)
+        #expect(result.difference.minorUnits == 70_000)
+    }
+
+    @Test func lessThanExpectedIsFlaggedButIsNotARise() {
+        // A short month must not ratchet anything.
+        let result = check(expected: 350_000, received: 300_000)
+        #expect(result.status == .less)
+        #expect(result.needsConfirmation)
+        #expect(!result.isRise)
+        #expect(result.difference.minorUnits == -50_000)
+    }
+
+    @Test func nothingReceivedAfterPayDayIsRaised() {
+        let result = check(expected: 350_000, received: 0, payDayPassed: true)
+        #expect(result.status == .nothingReceived)
+        #expect(result.needsConfirmation)
+    }
+
+    @Test func beforePayDayAShortfallIsNotADiscrepancy() {
+        // Mid-month with nothing in yet is normal, not a problem.
+        let result = check(expected: 350_000, received: 0, payDayPassed: false)
+        #expect(result.status == .notYetDue)
+        #expect(!result.needsConfirmation)
+    }
+
+    @Test func moneyArrivingEarlyStillReadsCorrectly() {
+        let result = check(expected: 350_000, received: 350_000, payDayPassed: false)
+        #expect(result.status == .matches)
+    }
+}

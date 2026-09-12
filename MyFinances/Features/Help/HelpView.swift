@@ -8,12 +8,13 @@ struct HelpView: View {
     @State private var section: Section = .start
 
     enum Section: String, CaseIterable, Identifiable {
-        case start, daily, words, screens, ladder, advisor, keys, privacy
+        case start, daily, recording, words, screens, ladder, advisor, keys, privacy
         var id: String { rawValue }
         var title: String {
             switch self {
             case .start: "Start here"
             case .daily: "Using it daily"
+            case .recording: "Where things go"
             case .words: "What the words mean"
             case .screens: "The screens"
             case .ladder: "The Ladder"
@@ -49,6 +50,7 @@ struct HelpView: View {
         switch section {
         case .start: startSection
         case .daily: dailySection
+        case .recording: recordingSection
         case .words: wordsSection
         case .screens: screensSection
         case .ladder: ladderSection
@@ -86,6 +88,12 @@ struct HelpView: View {
                  + "Miscellaneous a real number too — that is where discipline usually breaks. "
                  + "Weekly amounts, not monthly; the week is the unit you can still do "
                  + "something about.")
+
+            step(5, "Check your pay each month", "Income → This month's pay",
+                 "At the end of the month the app compares what actually arrived against "
+                 + "the figure you entered. If they differ it asks you to confirm which is "
+                 + "right. A baseline that has quietly drifted makes free-to-spend, every "
+                 + "goal date and every loan verdict wrong in the same direction.")
 
             infoCard("Then just log things",
                      "That is the whole job. Press ⌥⌘E from anywhere, type what you spent, "
@@ -135,6 +143,67 @@ struct HelpView: View {
                          + "there and type it in. The app shows the gap and posts one visible "
                          + "\u{201C}Unaccounted\u{201D} entry to close it. This is what keeps "
                          + "the numbers honest, and the dashboard will nag you after 14 days.")
+                        .font(.system(size: 12.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    // MARK: - Where things go
+
+    private var recordingSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.md) {
+            heading("Where does this go?",
+                    "Every kind of money movement, and what to do with it.")
+
+            card {
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    define("Rent, bills, a bus fare",
+                           "All the same thing: a spend. Log it with ⌥⌘E. If it repeats, set "
+                           + "it up once under Plan → Scheduled and then just press Paid when "
+                           + "it is due.")
+                    define("A repeating bill that is due",
+                           "Plan → Scheduled → Paid. That writes the entry and rolls the rule "
+                           + "on to next month. If the amount varies, change it there and it "
+                           + "remembers.")
+                    define("Money from a project",
+                           "Income → Record income. It works out the tax to set aside, and "
+                           + "anything unusually large is held out of your spendable balance "
+                           + "until you say where it goes.")
+                    define("A gift",
+                           "Income → Record income → Gift. It waits seven days before it can "
+                           + "be allocated. No decisions in the first week.")
+                    define("A refund",
+                           "Income → Record income → Refund. It reverses the original spend "
+                           + "and never counts as income or as a good month.")
+                    define("Paying off a loan",
+                           "Debt → right-click the loan → Record a payment. Use “Clear it” to "
+                           + "fill in the full settlement figure.")
+                    define("Moving money between your own accounts",
+                           "⌘T. One record, and it never counts as spending or income.")
+                    define("Putting money into a fund",
+                           "That is a transfer too — ⌘T into the investment account.")
+                }
+            }
+
+            infoCard("Paying a loan off with project money",
+                     "Record the income first, allocate it, then record the loan payment from "
+                     + "the account it landed in. Two entries, because two things happened: "
+                     + "money came in, and money went out to the lender. The loan is marked "
+                     + "paid and drops out of the payoff order, and every payment stays in "
+                     + "your records — nothing is deleted.")
+
+            card {
+                VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                    SectionLabel(text: "Investments and funds")
+                    Text("""
+                         Add an account of type Investment — your MFund, a T-bill ladder,                          whatever you hold. Money you put in is a transfer (⌘T), so the app                          always knows what you contributed.
+
+                         What it is worth is a different question, and one the app cannot                          answer: it has no internet. So every month or so it asks you. Open                          Investments and press Enter its value, put in the figure from your                          statement, and it keeps the history and charts it against what you                          put in.
+
+                         It will never forecast what the holding might become. That is fiction,                          and this app does not deal in it.
+                         """)
                         .font(.system(size: 12.5))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -194,11 +263,16 @@ struct HelpView: View {
                     define("Goals", "What you are saving for, when it arrives, and what "
                            + "changing the weekly amount does to that date.")
                     define("Income", "Windfalls waiting to be allocated, the tax reserve, what "
-                           + "your work actually pays per hour, and the creep chart.")
+                           + "your work actually pays per hour, the monthly pay check, and "
+                           + "the creep chart.")
+                    define("Investments", "What you put in, what you last said it is worth, "
+                           + "how many months you have contributed, and the emergency fund.")
                     define("Ladder", "Which of the seven stages you are on, with the evidence.")
                     define("Advisor", "What the next money you get should do, the rules, and "
                            + "the monthly letter.")
                     define("Review", "Your week and your month, with a copy button.")
+                    define("Settings", "Currency, your pay, and every threshold the app "
+                           + "uses. Nothing is hardcoded.")
                     define("Insights", "The logging heatmap, net worth, and where it all went.")
                 }
             }
@@ -272,7 +346,7 @@ struct HelpView: View {
                     shortcut("⌘T", "Transfer between accounts")
                     shortcut("⌥⌘I", "Show or hide the details panel")
                     shortcut("⌘1 … ⌘9", "Jump to a screen")
-                    shortcut("⌘,", "Settings")
+                    shortcut("⌘,", "Settings — also in the sidebar under Setup")
                     shortcut("Return", "Save, in any sheet")
                     shortcut("Esc", "Cancel, in any sheet")
                 }

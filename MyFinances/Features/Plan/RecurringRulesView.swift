@@ -19,6 +19,7 @@ struct RecurringRulesView: View {
 
     @State private var editingRuleID: UUID?
     @State private var isCreatingRule = false
+    @State private var postingRuleID: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.md) {
@@ -34,6 +35,14 @@ struct RecurringRulesView: View {
             set: { editingRuleID = $0?.id }
         )) { wrapper in
             RecurringRuleEditor(editingID: wrapper.id, formatter: formatter, calendar: calendar)
+        }
+        .sheet(item: Binding(
+            get: { postingRuleID.map { IdentifiedID(id: $0) } },
+            set: { postingRuleID = $0?.id }
+        )) { wrapper in
+            if let rule = rules.first(where: { $0.id == wrapper.id }) {
+                PostRecurringSheet(rule: rule, formatter: formatter, calendar: calendar)
+            }
         }
     }
 
@@ -87,6 +96,13 @@ struct RecurringRulesView: View {
             }
             Spacer()
             Text(formatter.string(rule.amount)).font(Theme.Font.amount)
+            if isDue(rule) {
+                Button(rule.kind == .income ? "Received" : "Paid") {
+                    postingRuleID = rule.id
+                }
+                .controlSize(.small)
+                .buttonStyle(.borderedProminent)
+            }
             Button {
                 editingRuleID = rule.id
             } label: {
@@ -95,6 +111,11 @@ struct RecurringRulesView: View {
             .buttonStyle(.plain).foregroundStyle(.tertiary)
         }
         .padding(.vertical, 2)
+    }
+
+    /// Due within the next three days, or already overdue.
+    private func isDue(_ rule: RecurringRule) -> Bool {
+        calendar.daysBetween(calendar.today(), rule.nextDueDate) <= 3
     }
 
     private func cadenceText(_ cadence: RecurringRule.Cadence) -> String {
