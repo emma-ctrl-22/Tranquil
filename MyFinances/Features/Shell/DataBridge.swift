@@ -96,6 +96,31 @@ enum DataBridge {
         )
     }
 
+    static func goal(_ goal: Goal, earmarks: [Earmark]) -> GoalEngine.GoalInput {
+        GoalEngine.GoalInput(
+            id: goal.id, name: goal.name, targetAmount: goal.targetAmount,
+            targetDate: goal.targetDate, priorityRank: goal.priorityRank,
+            holdingAccountID: goal.holdingAccount?.id, monthlyCap: goal.monthlyCap,
+            desireLevel: goal.desireLevel, status: goal.status,
+            saved: Money.sum(
+                earmarks.filter { $0.ownerID == goal.id && $0.deletedAt == nil }.map(\.amount)
+            )
+        )
+    }
+
+    static func fund(_ fund: SinkingFund, earmarks: [Earmark],
+                     periodsRemaining: Int) -> GoalEngine.FundInput {
+        let saved = Money.sum(
+            earmarks.filter { $0.ownerID == fund.id && $0.deletedAt == nil }.map(\.amount)
+        )
+        return GoalEngine.FundInput(
+            id: fund.id, name: fund.name,
+            requiredThisPeriod: fund.requiredPerPeriod(saved: saved,
+                                                       periodsRemaining: periodsRemaining),
+            isEmergencyFund: fund.isEmergencyFund
+        )
+    }
+
     static func record(_ earmark: Earmark) -> BalanceEngine.EarmarkRecord {
         BalanceEngine.EarmarkRecord(
             id: earmark.id,

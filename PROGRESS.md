@@ -259,5 +259,48 @@ carries all interest still owed, and the UI says so plainly.
 12. **Verdict bands** — under 15% comfortable, 15–30% tight, above the configured cap not
     affordable. The 15% line is from BUILD_PROMPT F7; the cap is a setting.
 
-### Next — M6, Goals
-Earmarks, the allocation waterfall, the ETA engine, wishlist, overspend ledger, cool-off.
+---
+
+## M6 — Goals ✅
+
+### What shipped
+
+**`Engines/GoalEngine`** — 18 tests.
+- **Waterfall**: Ladder requirement → sinking funds (emergency fund first) → goals in
+  manual priority order, each capped → leftover. Tested to never allocate more than the
+  surplus, and to allocate nothing rather than going negative when there is no surplus.
+- A goal never receives more than it still needs; funded and abandoned goals are skipped.
+- **ETA** runs the waterfall forward period by period, so a goal's date accounts for
+  everything ahead of it in the queue. That is what makes *"what does it cost me"*
+  answerable rather than a guess.
+- A goal that never gets funded reports **no ETA** instead of inventing a date.
+- `eta(forGoal:atRate:)` drives the lever: ₵250/week → 35 weeks, ₵400/week → 22.
+  An exact division does not round up a spurious extra period.
+- `costInTime` — "₵1,200 = 3 weeks of the iPhone".
+- Overspend ledger totals variance in both directions.
+
+**Goals screen** — one card per goal answering all four questions: how long (with a live
+slider), which account holds it, how much is there now, and the price. Purchased items
+roll up into an overspend ledger that states the number and adds no commentary.
+
+**Goal editor** — suggests the best liquid non-daily account as the holding account,
+monthly cap, desire level, and the 7-day cool-off on anything above the threshold. The
+saved amount is written as an **Earmark** against the holding account, never a separate
+balance.
+
+### Dashboard — now covers every module
+A new `ModuleStrip` gives each module exactly one figure: net worth, spent this week,
+60-day low, owed, and the next goal. Each tile opens its screen.
+
+Held against CLAUDE.md's rule that the dashboard answers one question: the strip is
+glanceable figures only, and just three things escalate into a notice — a toxic loan, a
+projected negative day, and an envelope past pace.
+
+**Debt was backfilled**: M5 shipped without dashboard presence, which was incomplete.
+
+### Assumption added
+13. **Dashboard module tiles appear only when they have data.** An empty Debt tile reading
+    ₵0.00 is noise on a dashboard whose job is answering "am I okay".
+
+### Next — M7, Ladder
+Stage engine, stability score, weekly and monthly reviews.

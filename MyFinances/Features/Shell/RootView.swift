@@ -24,6 +24,10 @@ struct RootView: View {
     private var rules: [RecurringRule]
     @Query(filter: #Predicate<ScheduledEvent> { $0.deletedAt == nil })
     private var events: [ScheduledEvent]
+    @Query(filter: #Predicate<Loan> { $0.deletedAt == nil })
+    private var loans: [Loan]
+    @Query(filter: #Predicate<Goal> { $0.deletedAt == nil }, sort: \Goal.priorityRank)
+    private var goals: [Goal]
     @Query private var settingsRows: [AppSettings]
 
     private var settings: AppSettings? { settingsRows.first }
@@ -79,7 +83,8 @@ struct RootView: View {
             DashboardView(model: $model, balances: balances, transactions: transactions,
                           settings: settings, formatter: formatter, calendar: calendar,
                           lastReconciledOn: lastReconciledOn,
-                          budgets: budgets, rules: rules, events: events)
+                          budgets: budgets, rules: rules, events: events,
+                          loans: loans, goals: goals, earmarks: earmarks)
         case .accounts:
             AccountsView(model: $model, balances: balances, formatter: formatter)
         case .ledger:
@@ -91,9 +96,29 @@ struct RootView: View {
         case .debt:
             DebtView(model: $model, formatter: formatter, calendar: calendar,
                      settings: settings)
+        case .goals:
+            GoalsView(model: $model, formatter: formatter, calendar: calendar,
+                      settings: settings, weeklySurplus: weeklySurplus)
         default:
             ComingSoonView(screen: model.screen)
         }
+    }
+
+    /// What is left each week after commitments and what has already been spent.
+    /// The goal waterfall flows from this.
+    private var weeklySurplus: Money {
+        BudgetEngine.freeToSpend(
+            expectedIncomeThisWeek: BudgetEngine.weeklyFromMonthly(
+                settings?.expectedMonthlyNetIncome ?? .zero
+            ),
+            commitments: rules.filter { $0.isCommittedOutflow && !$0.isArchived }
+                .map(DataBridge.commitment),
+            goalAllocationsThisWeek: .zero,
+            alreadySpentThisWeek: BalanceEngine.spend(
+                transactions: transactions.map(DataBridge.record),
+                in: calendar.weekInterval(containing: calendar.currentDate())
+            )
+        ).amount.clampedToZero
     }
 
     /// The most recent financial day on which any account was reconciled.

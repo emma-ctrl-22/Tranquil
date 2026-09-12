@@ -14,6 +14,9 @@ struct DashboardView: View {
     let budgets: [Budget]
     let rules: [RecurringRule]
     let events: [ScheduledEvent]
+    let loans: [Loan]
+    let goals: [Goal]
+    let earmarks: [Earmark]
 
     private var totals: BalanceEngine.Totals { BalanceEngine.totals(for: balances) }
     private var records: [BalanceEngine.TransactionRecord] { transactions.map(DataBridge.record) }
@@ -75,6 +78,133 @@ struct DashboardView: View {
         )
     }
 
+    // MARK: - Module summaries
+
+    private var debtPositions: [LoanEngine.Position] {
+        loans.filter { $0.status != .planned }
+            .map { LoanEngine.position(for: DataBridge.loan($0), calendar: calendar) }
+    }
+
+    private var owedPositions: [LoanEngine.Position] {
+        debtPositions.filter { $0.loan.direction == .iOwe && !$0.isPaidOff }
+    }
+
+    private var totalOwed: Money { Money.sum(owedPositions.map(\.remainingBalance)) }
+
+    private var debtServiceRatio: Decimal? {
+        guard let income = settings?.expectedMonthlyNetIncome, income.isPositive,
+              !owedPositions.isEmpty else { return nil }
+        let monthly = Money.sum(owedPositions.map {
+            LoanEngine.monthlyEquivalent($0.regularPayment, frequency: $0.loan.paymentFrequency)
+        })
+        return monthly.ratio(to: income)
+    }
+
+    private var toxicLoans: [LoanEngine.Position] {
+        let threshold = settings?.highInterestThresholdAPR ?? Decimal(string: "0.25")!
+        return owedPositions.filter { $0.isToxic(highInterestThreshold: threshold) }
+    }
+
+    private var goalInputs: [GoalEngine.GoalInput] {
+        goals.map { DataBridge.goal($0, earmarks: earmarks) }
+    }
+
+    private var goalETAs: [GoalEngine.ETA] {
+        GoalEngine.etas(
+            surplusPerPeriod: freeToSpend.amount.clampedToZero,
+            ladderRequirement: .none, funds: [], goals: goalInputs,
+            periodLength: .weekly, from: calendar.today(), calendar: calendar
+        )
+    }
+
+    /// The top-priority goal still being saved for.
+    private var nextGoal: GoalEngine.GoalInput? {
+        goalInputs.filter { $0.status == .saving && !$0.isFunded }
+            .min { $0.priorityRank < $1.priorityRank }
+    }
+
+    /// Every module gets one figure here. Only real problems become notices above.
+    private var moduleItems: [ModuleStrip.Item] {
+        var items: [ModuleStrip.Item] = []
+
+        items.append(ModuleStrip.Item(
+            id: "networth", screen: .accounts, label: "Net worth",
+            value: formatter.string(totals.netWorth),
+            detail: totals.taxReserved.isZero
+                ? "Across every account you own"
+                : "\(formatter.string(totals.taxReserved)) held separately for tax",
+            tone: .neutral,
+            accessibleValue: formatter.accessibleString(totals.netWorth)
+        ))
+
+        items.append(ModuleStrip.Item(
+            id: "week", screen: .plan, label: "Spent this week",
+            value: formatter.string(spentThisWeek),
+            detail: envelopeStates.isEmpty
+                ? "Day \(elapsed) of 7 · no envelopes set"
+                : "Day \(elapsed) of 7 · \(envelopesAheadOfPace.count) ahead of pace",
+            tone: envelopesAheadOfPace.isEmpty ? .neutral : .caution,
+            accessibleValue: formatter.accessibleString(spentThisWeek)
+        ))
+
+        if !commitments.isEmpty || projection.hasTrouble {
+            let trouble = projection.firstNegativeDay
+            items.append(ModuleStrip.Item(
+                id: "forecast", screen: .plan, label: "60-day low",
+                value: formatter.string(projection.lowestDay?.closingBalance
+                                        ?? totals.liquidAvailable),
+                detail: trouble.map {
+                    "Goes negative on "
+                    + $0.date.formatted(.dateTime.day().month(.abbreviated))
+                } ?? "Stays in credit the whole way",
+                tone: trouble == nil ? .positive : .negative,
+                accessibleValue: formatter.accessibleString(
+                    projection.lowestDay?.closingBalance ?? totals.liquidAvailable)
+            ))
+        }
+
+        if !owedPositions.isEmpty {
+            items.append(ModuleStrip.Item(
+                id: "debt", screen: .debt, label: "Owed",
+                value: formatter.string(totalOwed),
+                detail: debtServiceRatio.map {
+                    "\(percentText($0)) of income goes to debt"
+                } ?? "\(owedPositions.count) active",
+                tone: debtTone,
+                accessibleValue: formatter.accessibleString(totalOwed)
+            ))
+        }
+
+        if let goal = nextGoal {
+            let eta = goalETAs.first { $0.goalID == goal.id }
+            items.append(ModuleStrip.Item(
+                id: "goal", screen: .goals, label: "Next: \(goal.name)",
+                value: formatter.string(goal.saved),
+                detail: eta?.date.map {
+                    "of \(formatter.string(goal.targetAmount)) · "
+                    + $0.formatted(.dateTime.day().month(.abbreviated))
+                } ?? "of \(formatter.string(goal.targetAmount)) · nothing going in yet",
+                tone: eta?.isReachable == true ? .positive : .neutral,
+                accessibleValue: formatter.accessibleString(goal.saved)
+            ))
+        }
+
+        return items
+    }
+
+    private var debtTone: StatTile.Tone {
+        if !toxicLoans.isEmpty { return .negative }
+        guard let ratio = debtServiceRatio else { return .neutral }
+        if ratio > (settings?.maxDebtServiceRatio ?? Decimal(string: "0.30")!) { return .negative }
+        if ratio > Decimal(string: "0.15")! { return .caution }
+        return .neutral
+    }
+
+    private func percentText(_ value: Decimal) -> String {
+        let scaled = Money.roundBankers(value * 10_000)
+        return "\(scaled / 100)%"
+    }
+
     private var todaysTransactions: [Transaction] {
         let today = calendar.today()
         return transactions.filter { calendar.financialDay(for: $0.date) == today }
@@ -85,6 +215,9 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: Theme.Space.md) {
                 headline
                 warnings
+                if !moduleItems.isEmpty {
+                    ModuleStrip(items: moduleItems) { screen in model.open(screen) }
+                }
                 HStack(alignment: .top, spacing: Theme.Space.md) {
                     weekCard
                     todayCard
@@ -195,7 +328,8 @@ struct DashboardView: View {
             lastReconciledOn: lastReconciledOn, today: calendar.today(), calendar: calendar
         ) && !balances.isEmpty
         if !overCommitted.isEmpty || !belowFloor.isEmpty || needsReconcile
-            || !envelopesAheadOfPace.isEmpty || projection.firstNegativeDay != nil {
+            || !envelopesAheadOfPace.isEmpty || projection.firstNegativeDay != nil
+            || !toxicLoans.isEmpty {
             VStack(spacing: Theme.Space.sm) {
                 ForEach(overCommitted) { entry in
                     // The invariant is surfaced, never silently rebalanced.
@@ -216,6 +350,19 @@ struct DashboardView: View {
                         title: reconcileTitle,
                         detail: "Count what is actually in one account and check it against the "
                               + "ledger. Small gaps compound quietly."
+                    )
+                }
+                if let toxic = toxicLoans.first {
+                    NoticeRow(
+                        tone: .negative,
+                        icon: "flame",
+                        title: "\(toxic.loan.name) is the one to clear first",
+                        detail: toxic.loan.socialWeight >= 4
+                            ? "\(formatter.string(toxic.remainingBalance)) owed to someone you "
+                              + "know. That costs more than interest does."
+                            : "\(formatter.string(toxic.remainingBalance)) at "
+                              + "\(percentText(toxic.loan.annualRate)) — above your "
+                              + "high-interest line."
                     )
                 }
                 if let trouble = projection.firstNegativeDay {
