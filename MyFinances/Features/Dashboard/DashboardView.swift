@@ -13,6 +13,7 @@ struct DashboardView: View {
     let lastReconciledOn: Date?
     let budgets: [Budget]
     let rules: [RecurringRule]
+    let events: [ScheduledEvent]
 
     private var totals: BalanceEngine.Totals { BalanceEngine.totals(for: balances) }
     private var records: [BalanceEngine.TransactionRecord] { transactions.map(DataBridge.record) }
@@ -60,6 +61,18 @@ struct DashboardView: View {
 
     private var envelopesAheadOfPace: [BudgetEngine.EnvelopeState] {
         envelopeStates.filter { $0.isAheadOfPace || $0.isOverspent }
+    }
+
+    /// The 60-day forward view, summarised as one line on the dashboard.
+    private var projection: ForecastEngine.Projection {
+        ForecastEngine.project(
+            startingBalance: totals.liquidAvailable,
+            from: calendar.currentDate(),
+            days: 60,
+            scheduled: rules.filter { !$0.isArchived }.map(DataBridge.scheduled),
+            oneOffs: events.map(DataBridge.oneOff),
+            calendar: calendar
+        )
     }
 
     private var todaysTransactions: [Transaction] {
@@ -182,7 +195,7 @@ struct DashboardView: View {
             lastReconciledOn: lastReconciledOn, today: calendar.today(), calendar: calendar
         ) && !balances.isEmpty
         if !overCommitted.isEmpty || !belowFloor.isEmpty || needsReconcile
-            || !envelopesAheadOfPace.isEmpty {
+            || !envelopesAheadOfPace.isEmpty || projection.firstNegativeDay != nil {
             VStack(spacing: Theme.Space.sm) {
                 ForEach(overCommitted) { entry in
                     // The invariant is surfaced, never silently rebalanced.
@@ -203,6 +216,16 @@ struct DashboardView: View {
                         title: reconcileTitle,
                         detail: "Count what is actually in one account and check it against the "
                               + "ledger. Small gaps compound quietly."
+                    )
+                }
+                if let trouble = projection.firstNegativeDay {
+                    NoticeRow(
+                        tone: .negative,
+                        icon: "calendar.badge.exclamationmark",
+                        title: "\(trouble.date.formatted(.dateTime.weekday(.wide).day().month())) "
+                             + "projects below zero",
+                        detail: ForecastEngine.suggestion(for: projection, formatter: formatter)
+                            ?? "Open Plan to see what lands that day."
                     )
                 }
                 ForEach(envelopesAheadOfPace) { state in

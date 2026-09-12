@@ -22,6 +22,8 @@ struct RootView: View {
     private var budgets: [Budget]
     @Query(filter: #Predicate<RecurringRule> { $0.deletedAt == nil })
     private var rules: [RecurringRule]
+    @Query(filter: #Predicate<ScheduledEvent> { $0.deletedAt == nil })
+    private var events: [ScheduledEvent]
     @Query private var settingsRows: [AppSettings]
 
     private var settings: AppSettings? { settingsRows.first }
@@ -77,7 +79,7 @@ struct RootView: View {
             DashboardView(model: $model, balances: balances, transactions: transactions,
                           settings: settings, formatter: formatter, calendar: calendar,
                           lastReconciledOn: lastReconciledOn,
-                          budgets: budgets, rules: rules)
+                          budgets: budgets, rules: rules, events: events)
         case .accounts:
             AccountsView(model: $model, balances: balances, formatter: formatter)
         case .ledger:

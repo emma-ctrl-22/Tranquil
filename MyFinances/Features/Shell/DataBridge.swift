@@ -63,6 +63,24 @@ enum DataBridge {
         )
     }
 
+    static func scheduled(_ rule: RecurringRule) -> ForecastEngine.ScheduledItem {
+        ForecastEngine.ScheduledItem(
+            id: rule.id, label: rule.label, amount: rule.amount, kind: rule.kind,
+            cadence: rule.cadence, nextDueDate: rule.nextDueDate, endDate: rule.endDate,
+            isVariableAmount: rule.isVariableAmount,
+            isCommittedOutflow: rule.isCommittedOutflow
+        )
+    }
+
+    static func oneOff(_ event: ScheduledEvent) -> ForecastEngine.OneOffItem {
+        ForecastEngine.OneOffItem(
+            id: event.id, label: event.label,
+            // Already weighted: a `.maybe` arrives halved.
+            amount: event.projectedAmount, kind: .expense,
+            date: event.expectedDate, confidence: event.confidence
+        )
+    }
+
     static func record(_ earmark: Earmark) -> BalanceEngine.EarmarkRecord {
         BalanceEngine.EarmarkRecord(
             id: earmark.id,

@@ -14,8 +14,28 @@ struct PlanView: View {
     @Query(filter: #Predicate<RecurringRule> { $0.deletedAt == nil })
     private var rules: [RecurringRule]
 
+    @Query(filter: #Predicate<ScheduledEvent> { $0.deletedAt == nil })
+    private var events: [ScheduledEvent]
+    @Query(filter: #Predicate<Account> { $0.deletedAt == nil })
+    private var accounts: [Account]
+    @Query(filter: #Predicate<Earmark> { $0.deletedAt == nil })
+    private var earmarks: [Earmark]
+
     @State private var editingBudgetID: UUID?
     @State private var isCreatingEnvelope = false
+    @State private var tab: Tab = .envelopes
+
+    enum Tab: String, CaseIterable, Identifiable {
+        case envelopes, scheduled, calendar
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .envelopes: "Envelopes"
+            case .scheduled: "Scheduled"
+            case .calendar: "Cash flow"
+            }
+        }
+    }
 
     private var week: DateInterval { calendar.weekInterval(containing: calendar.currentDate()) }
     private var previousWeek: DateInterval {
@@ -63,7 +83,71 @@ struct PlanView: View {
         rules.filter { $0.isCommittedOutflow && !$0.isArchived }.map(DataBridge.commitment)
     }
 
+    /// Liquid available today is where the projection starts.
+    private var projection: ForecastEngine.Projection {
+        let balances = BalanceEngine.balances(
+            accounts: accounts.map(DataBridge.record),
+            transactions: records,
+            earmarks: earmarks.map(DataBridge.record)
+        )
+        let totals = BalanceEngine.totals(for: balances)
+        let floors = balances.compactMap(\.account.lowBalanceFloor)
+        return ForecastEngine.project(
+            startingBalance: totals.liquidAvailable,
+            from: calendar.currentDate(),
+            days: 60,
+            scheduled: rules.filter { !$0.isArchived }.map(DataBridge.scheduled),
+            oneOffs: events.map(DataBridge.oneOff),
+            floor: floors.isEmpty ? nil : Money.sum(floors),
+            calendar: calendar
+        )
+    }
+
     var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $tab) {
+                ForEach(Tab.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: 320)
+            .padding(.horizontal, Theme.Space.lg)
+            .padding(.vertical, Theme.Space.sm)
+            Divider().opacity(0.5)
+            content
+        }
+        .sheet(isPresented: $isCreatingEnvelope) {
+            EnvelopeEditor(editingID: nil, formatter: formatter)
+        }
+        .sheet(item: Binding(
+            get: { editingBudgetID.map { IdentifiedID(id: $0) } },
+            set: { editingBudgetID = $0?.id }
+        )) { wrapper in
+            EnvelopeEditor(editingID: wrapper.id, formatter: formatter)
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch tab {
+        case .envelopes: envelopesTab
+        case .scheduled:
+            ScrollView {
+                RecurringRulesView(formatter: formatter, calendar: calendar)
+                    .padding(Theme.Space.lg)
+            }
+        case .calendar:
+            ScrollView {
+                CashFlowCalendarView(projection: projection, formatter: formatter,
+                                     calendar: calendar)
+                    .padding(Theme.Space.lg)
+            }
+        }
+    }
+
+    private var envelopesTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Space.md) {
                 if states.isEmpty {
@@ -87,15 +171,6 @@ struct PlanView: View {
                 }
             }
             .padding(Theme.Space.lg)
-        }
-        .sheet(isPresented: $isCreatingEnvelope) {
-            EnvelopeEditor(editingID: nil, formatter: formatter)
-        }
-        .sheet(item: Binding(
-            get: { editingBudgetID.map { IdentifiedID(id: $0) } },
-            set: { editingBudgetID = $0?.id }
-        )) { wrapper in
-            EnvelopeEditor(editingID: wrapper.id, formatter: formatter)
         }
     }
 

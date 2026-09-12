@@ -172,6 +172,47 @@ on the budget with its date. Envelopes never rise on their own.
    switches to *free to spend this week*. Before there are commitments the two are the
    same number, and the simpler label is the honest one.
 
-### Next — M4, Forward view
-Recurring rules, committed outflows, scheduled events, sinking funds and the 60-day
-cash-flow calendar.
+---
+
+## M4 — Forward view ✅
+
+### What shipped
+
+**`Engines/ForecastEngine`** — 17 tests.
+- `occurrences(of:from:through:)` expands any cadence over a window. Month-end clamps
+  rather than skips: monthly-on-the-31st gives 31 Jan, 28 Feb, 31 Mar, 30 Apr.
+- A rule whose due date has fallen behind is **caught up silently**, not replayed — a
+  three-month-stale rent rule emits the next occurrence, not three missed ones.
+- Every loop carries a guard rail, so a malformed cadence cannot hang the app.
+- `project(...)` walks the balance day by day, bucketing movements in one pass.
+- Reports `firstNegativeDay` and, earlier and more softly, `firstDayBelowFloor`.
+- `suggestion(for:)` names the **largest** outflow on the trouble day and what moving it
+  would clear. A fix, never a lecture.
+
+**Plan screen, now three tabs**
+- *Envelopes* — as M3.
+- *Scheduled* — recurring rules with cadence and next due date, sinking funds with
+  progress and required-per-period, and upcoming scheduled events.
+- *Cash flow* — a 60-day Swift Charts area/line with zero and floor rule marks and a
+  marker on the trouble day, a 60-cell day grid coloured by state, and a detail card
+  showing exactly what lands on any day you click.
+
+**Recurring rule editor** — full cadence controls, variable-amount and committed-outflow
+flags, and auto-post versus remind-only (remind-only is the default).
+
+**Dashboard** — a projected-negative-day notice with its suggested fix.
+
+**Salary-rise detection, groundwork** — editing an income rule's amount stores the
+previous one, so §4b can allocate the *delta* rather than letting a raise become the new
+baseline. The allocation sheet itself is M7.5.
+
+### Assumptions added
+9. **Projection floor** — the cash-flow floor is the **sum** of every account's
+   `lowBalanceFloor`, since the projection tracks one combined liquid balance.
+   Per-account projection needs per-account forecasting, which the spec does not ask for.
+10. **Stale recurring rules** are advanced to the window without emitting the missed
+    occurrences. Replaying them would invent transactions that never happened.
+
+### Next — M5, Debt
+Loans, generated schedules, payments, payoff orders (avalanche, snowball, peace of mind,
+balanced), the extra-payment simulator and the planned-loan verdict.
