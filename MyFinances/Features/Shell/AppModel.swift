@@ -7,6 +7,7 @@ import SwiftData
 final class AppModel {
     enum Screen: String, CaseIterable, Identifiable, Hashable {
         case dashboard, ledger, accounts, plan, debt, income, advisor, goals, insights, ladder
+        case review
 
         var id: String { rawValue }
 
@@ -22,6 +23,7 @@ final class AppModel {
             case .goals: "Goals"
             case .insights: "Insights"
             case .ladder: "Ladder"
+            case .review: "Review"
             }
         }
 
@@ -37,13 +39,14 @@ final class AppModel {
             case .goals: "target"
             case .insights: "chart.bar"
             case .ladder: "stairs"
+            case .review: "doc.text"
             }
         }
 
         /// Screens that arrive in later milestones are shown but marked.
         var isAvailable: Bool {
             switch self {
-            case .dashboard, .ledger, .accounts, .plan, .debt, .goals: true
+            case .dashboard, .ledger, .accounts, .plan, .debt, .goals, .ladder, .review: true
             default: false
             }
         }

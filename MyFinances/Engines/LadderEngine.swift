@@ -11,45 +11,45 @@ nonisolated enum LadderEngine {
     /// Everything the ladder needs, gathered once by the caller.
     struct Snapshot: Sendable {
         /// Spendable today, after earmarks, excluding the tax reserve.
-        let liquidAvailable: Money
+        var liquidAvailable: Money
         /// Trailing three-month median of essential spend, per month.
-        let essentialMonthlySpend: Money
+        var essentialMonthlySpend: Money
         /// Financial days logged in the last 28.
-        let daysLoggedLast28: Int
+        var daysLoggedLast28: Int
         /// Days since any account was reconciled; nil if never.
-        let daysSinceReconciliation: Int?
+        var daysSinceReconciliation: Int?
         /// Loan payments currently overdue.
-        let overdueLoanCount: Int
+        var overdueLoanCount: Int
         /// Days since the most recent late payment; nil if there has never been one.
-        let daysSinceLastLatePayment: Int?
+        var daysSinceLastLatePayment: Int?
         /// Recurring bills falling due in the next 30 days.
-        let billsDueNext30Days: Money
+        var billsDueNext30Days: Money
         /// Lowest projected balance over the next 30 days.
-        let projectedLowNext30Days: Money
+        var projectedLowNext30Days: Money
         /// Loans above the high-interest line or owed to family, still outstanding.
-        let toxicDebtRemaining: Money
+        var toxicDebtRemaining: Money
         /// Earmarked in the designated emergency-fund account.
-        let emergencyFundBalance: Money
+        var emergencyFundBalance: Money
         /// Days since anything was taken out of the emergency fund; nil if never touched.
-        let daysSinceEmergencyFundWithdrawal: Int?
+        var daysSinceEmergencyFundWithdrawal: Int?
         /// Sinking funds that are at or above their required-to-date balance.
-        let sinkingFundsOnTrack: Int
-        let sinkingFundsTotal: Int
+        var sinkingFundsOnTrack: Int
+        var sinkingFundsTotal: Int
         /// Monthly debt payments over median monthly net income.
-        let debtServiceRatio: Decimal
+        var debtServiceRatio: Decimal
         /// Highest APR still carried, as a fraction.
-        let highestRemainingAPR: Decimal
+        var highestRemainingAPR: Decimal
         /// Months out of the last twelve with an investment contribution.
-        let investmentMonthsLast12: Int
+        var investmentMonthsLast12: Int
         /// Months out of the last six with an investment contribution.
-        let investmentMonthsLast6: Int
+        var investmentMonthsLast6: Int
         /// Consecutive months for which stages 0–6 have all held.
-        let monthsAllStagesHeld: Int
+        var monthsAllStagesHeld: Int
         /// Scheduled payments met on time, out of those due, over the trailing year.
-        let onTimePaymentsRatio: Decimal
+        var onTimePaymentsRatio: Decimal
         /// Envelopes finishing inside budget, out of those with a budget, trailing 8 weeks.
-        let budgetAdherenceRatio: Decimal
-        let emergencyFundTargetMonths: Int
+        var budgetAdherenceRatio: Decimal
+        var emergencyFundTargetMonths: Int
 
         /// The thresholds the spec fixes for stage 6.
         static let maxDebtServiceForStage6 = Decimal(string: "0.20")!

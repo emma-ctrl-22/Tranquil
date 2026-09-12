@@ -302,5 +302,57 @@ projected negative day, and an envelope past pace.
 13. **Dashboard module tiles appear only when they have data.** An empty Debt tile reading
     ₵0.00 is noise on a dashboard whose job is answering "am I okay".
 
-### Next — M7, Ladder
-Stage engine, stability score, weekly and monthly reviews.
+---
+
+## M7 — Ladder ✅
+
+### What shipped
+
+**`Engines/LadderEngine`** — 24 tests, one per stage boundary plus the score.
+- All seven stages evaluated against the spec's exact conditions, including the ones
+  easy to fudge: 21 of 28 days **and** reconciled within 7; a late payment 59 days ago
+  still fails stage 2; the emergency fund untouched for 90 days, not 89; **every**
+  sinking fund on track, not most; stage 7 needs six consecutive months **and**
+  investing in five of six.
+- `currentStage` is the lowest unmet stage — the one you are working on.
+- With no spend history the buffer **cannot be claimed** and runway is `nil`. Unknown,
+  not passed: otherwise someone who has logged nothing clears stage 1 for free.
+- **Stability score** with the spec's weights (30/20/15/10/10/10/5) and a test asserting
+  they sum to 100. It always arrives broken into parts with the arithmetic for each.
+- Investing scores **months contributed**, never the amount — consistency beats size.
+- **One action at a time**, chosen by stage and by what is actually missing, pointing at
+  the screen that fixes it. A test asserts no stage ever returns a list.
+- A test scans every stage's evidence and the action for shame language and exclamation
+  marks.
+
+**`Engines/ReviewEngine`** — 18 tests. Weekly and monthly, deterministic and templated.
+The weekly returns exactly **one** suggestion, chosen by what actually moved: poor logging
+first (nothing downstream is trustworthy without it), then the worst envelope, then the
+review queue. A clean week says "nothing needs changing" with no praise attached.
+The monthly headline figure is chosen by rule: ladder move → debt cleared → savings rate
+→ net worth.
+
+**`LadderSnapshotBuilder`** — the seam between the store and the pure engine. Essential
+spend is a trailing three-month **median**, so one heavy month does not permanently
+raise the bar.
+
+**Ladder screen** — current stage, runway, the one next action, the score broken into
+seven bars with their evidence, and all seven stages with what each needs.
+
+**Review screen** — weekly and monthly, with "copy as text".
+
+### Dashboard
+The **one next action** now sits at the top of the dashboard, above everything else, with
+a button that goes to the right screen. Two tiles joined the strip: **Stability** (score
+plus current stage) and **Runway** (months of essentials covered).
+
+### Assumptions added
+14. **Stability score curves** — runway scores full marks at 6 months; debt service scores
+    full at 0% and zero at 40%+. The spec fixes the weights but not the curves.
+15. **`monthsAllStagesHeld` is 0 until history exists.** Stage 7 needs six months of
+    recorded evaluations; the app has none yet, so Tranquil is correctly unreachable
+    rather than falsely claimable. `LadderState` snapshots will feed it.
+
+### Next — M7.5, Income events and the Advisor
+Windfall interception, allocation sheet, tax reserve, salary-rise ratchet, creep chart,
+AdvisorEngine with R1–R11, verdicts, override log and the monthly letter.

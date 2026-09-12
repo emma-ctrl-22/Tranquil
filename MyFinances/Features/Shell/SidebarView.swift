@@ -14,7 +14,7 @@ struct SidebarView: View {
                 VStack(alignment: .leading, spacing: Theme.Space.lg) {
                     group("Daily", [.dashboard, .ledger, .accounts])
                     group("Forward", [.plan, .debt, .goals])
-                    group("Standing back", [.income, .advisor, .ladder, .insights])
+                    group("Standing back", [.ladder, .review, .income, .advisor, .insights])
                 }
                 .padding(.vertical, Theme.Space.md)
             }

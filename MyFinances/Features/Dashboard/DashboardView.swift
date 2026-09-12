@@ -17,6 +17,7 @@ struct DashboardView: View {
     let loans: [Loan]
     let goals: [Goal]
     let earmarks: [Earmark]
+    let ladder: LadderEngine.Evaluation
 
     private var totals: BalanceEngine.Totals { BalanceEngine.totals(for: balances) }
     private var records: [BalanceEngine.TransactionRecord] { transactions.map(DataBridge.record) }
@@ -189,7 +190,34 @@ struct DashboardView: View {
             ))
         }
 
+        items.append(ModuleStrip.Item(
+            id: "ladder", screen: .ladder, label: "Stability",
+            value: "\(ladder.stabilityScore.total)",
+            detail: "\(ladder.currentStage.title) · stage "
+                  + "\(ladder.currentStage.rawValue) of 7",
+            tone: scoreTone,
+            accessibleValue: "\(ladder.stabilityScore.total) out of 100"
+        ))
+
+        if let runway = ladder.runwayMonths {
+            let tenths = Money.roundBankers(runway * 10)
+            items.append(ModuleStrip.Item(
+                id: "runway", screen: .ladder, label: "Runway",
+                value: "\(tenths / 10).\(abs(tenths % 10)) mo",
+                detail: "of essential spend covered by what is liquid",
+                tone: runway < 1 ? .negative : (runway < 3 ? .caution : .positive),
+                accessibleValue: "\(tenths / 10) point \(abs(tenths % 10)) months"
+            ))
+        }
+
         return items
+    }
+
+    private var scoreTone: StatTile.Tone {
+        let total = ladder.stabilityScore.total
+        if total >= 70 { return .positive }
+        if total >= 40 { return .caution }
+        return .negative
     }
 
     private var debtTone: StatTile.Tone {
@@ -215,6 +243,7 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: Theme.Space.md) {
                 headline
                 warnings
+                nextActionCard
                 if !moduleItems.isEmpty {
                     ModuleStrip(items: moduleItems) { screen in model.open(screen) }
                 }
@@ -400,6 +429,27 @@ struct DashboardView: View {
     }
 
     // MARK: - Cards
+
+    /// One recommended action. Never a to-do list of financial obligations.
+    private var nextActionCard: some View {
+        Card {
+            HStack(alignment: .top, spacing: Theme.Space.md) {
+                Image(systemName: "arrow.right.circle")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Theme.Palette.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    SectionLabel(text: "Next")
+                    Text(ladder.nextAction.title).font(.system(size: 14, weight: .medium))
+                    Text(ladder.nextAction.detail)
+                        .font(Theme.Font.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Button("Go") { model.open(ladder.nextAction.screen) }
+                    .controlSize(.small)
+            }
+        }
+    }
 
     private var weekCard: some View {
         Card {

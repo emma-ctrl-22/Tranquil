@@ -28,6 +28,10 @@ struct RootView: View {
     private var loans: [Loan]
     @Query(filter: #Predicate<Goal> { $0.deletedAt == nil }, sort: \Goal.priorityRank)
     private var goals: [Goal]
+    @Query(filter: #Predicate<SinkingFund> { $0.deletedAt == nil })
+    private var funds: [SinkingFund]
+    @Query(filter: #Predicate<OverrideLog> { $0.deletedAt == nil })
+    private var overrides: [OverrideLog]
     @Query private var settingsRows: [AppSettings]
 
     private var settings: AppSettings? { settingsRows.first }
@@ -84,7 +88,8 @@ struct RootView: View {
                           settings: settings, formatter: formatter, calendar: calendar,
                           lastReconciledOn: lastReconciledOn,
                           budgets: budgets, rules: rules, events: events,
-                          loans: loans, goals: goals, earmarks: earmarks)
+                          loans: loans, goals: goals, earmarks: earmarks,
+                          ladder: ladderEvaluation)
         case .accounts:
             AccountsView(model: $model, balances: balances, formatter: formatter)
         case .ledger:
@@ -99,9 +104,31 @@ struct RootView: View {
         case .goals:
             GoalsView(model: $model, formatter: formatter, calendar: calendar,
                       settings: settings, weeklySurplus: weeklySurplus)
+        case .ladder:
+            LadderView(model: $model, evaluation: ladderEvaluation,
+                       snapshot: ladderSnapshot, formatter: formatter)
+        case .review:
+            ReviewView(weekly: weeklyReview, monthly: monthlyReview, formatter: formatter)
         default:
             ComingSoonView(screen: model.screen)
         }
+    }
+
+    /// Everything the Ladder needs, gathered once.
+    private var ladderSources: LadderSnapshotBuilder.Sources {
+        LadderSnapshotBuilder.Sources(
+            accounts: accounts, transactions: transactions, earmarks: earmarks,
+            budgets: budgets, rules: rules, events: events, loans: loans,
+            funds: funds, dailyLogs: dailyLogs, settings: settings
+        )
+    }
+
+    private var ladderSnapshot: LadderEngine.Snapshot {
+        LadderSnapshotBuilder.build(from: ladderSources, calendar: calendar)
+    }
+
+    private var ladderEvaluation: LadderEngine.Evaluation {
+        LadderEngine.evaluate(ladderSnapshot)
     }
 
     /// What is left each week after commitments and what has already been spent.
@@ -124,6 +151,100 @@ struct RootView: View {
     /// The most recent financial day on which any account was reconciled.
     private var lastReconciledOn: Date? {
         dailyLogs.first { $0.wasReconciled }?.date
+    }
+
+    // MARK: - Reviews
+
+    private var weeklyReview: ReviewEngine.Weekly {
+        let week = calendar.weekInterval(containing: calendar.currentDate())
+        let records = transactions.map(DataBridge.record)
+        let elapsed = calendar.elapsedDaysInWeek(containing: calendar.currentDate())
+        let days = calendar.daysInMonth(containing: calendar.currentDate())
+
+        let envelopes = budgets.map { budget -> ReviewEngine.EnvelopeLine in
+            let ids = budget.category.map { Set([$0.id]) }
+            return ReviewEngine.EnvelopeLine(
+                id: budget.id,
+                name: budget.category?.name ?? "Miscellaneous",
+                budget: BudgetEngine.weeklyBudget(for: DataBridge.envelope(budget),
+                                                  daysInMonth: days),
+                spent: BalanceEngine.spend(transactions: records, in: week, categoryIDs: ids)
+            )
+        }
+
+        let expenses = transactions
+            .filter { $0.kind == .expense && week.start <= $0.date && $0.date < week.end }
+            .map { ReviewEngine.ExpenseLine(
+                id: $0.id,
+                label: $0.category?.name ?? $0.note ?? "Unlabelled",
+                amount: $0.amount, date: $0.date
+            ) }
+
+        let loggedDays = dailyLogs.filter {
+            $0.entryCount > 0 && week.start <= calendar.startOfFinancialDay($0.date)
+                && calendar.startOfFinancialDay($0.date) < week.end
+        }.count
+
+        return ReviewEngine.weekly(
+            weekStart: week.start,
+            envelopes: envelopes,
+            expenses: expenses,
+            totalIncome: BalanceEngine.income(transactions: records, in: week),
+            streak: DailyLogService.currentStreak(logs: dailyLogs, today: calendar.today(),
+                                                  calendar: calendar),
+            daysLogged: Swift.min(loggedDays, elapsed),
+            needsReviewCount: transactions.filter(\.isEstimate).count,
+            goalsMoved: []
+        )
+    }
+
+    private var monthlyReview: ReviewEngine.Monthly {
+        let month = calendar.monthInterval(containing: calendar.currentDate())
+        let records = transactions.map(DataBridge.record)
+        let balances = BalanceEngine.balances(
+            accounts: accounts.map(DataBridge.record), transactions: records,
+            earmarks: earmarks.map(DataBridge.record)
+        )
+        let totals = BalanceEngine.totals(for: balances)
+        let income = BalanceEngine.income(transactions: records, in: month)
+        let spend = BalanceEngine.spend(transactions: records, in: month)
+
+        // Broken into steps with explicit types: the chained form defeats the type checker.
+        var allPayments: [LoanPayment] = []
+        for loan in loans { allPayments.append(contentsOf: loan.payments ?? []) }
+        let monthPayments = allPayments.filter { payment -> Bool in
+            payment.deletedAt == nil && payment.date >= month.start && payment.date < month.end
+        }
+        let debtCleared = Money.sum(monthPayments.map { $0.principalPortion })
+
+        let overspend = GoalEngine.overspendTotal(
+            goals.compactMap { goal in
+                guard goal.status == .purchased, let paid = goal.actualPricePaid else { return nil }
+                return GoalEngine.OverspendEntry(id: goal.id, name: goal.name,
+                                                 planned: goal.targetAmount, paid: paid)
+            }
+        )
+
+        let monthOverrides = overrides.filter { entry -> Bool in
+            entry.occurredAt >= month.start && entry.occurredAt < month.end
+        }
+
+        return ReviewEngine.Monthly(
+            monthStart: month.start,
+            netWorth: totals.netWorth,
+            netWorthChange: income - spend,
+            income: income, spend: spend,
+            savingsRate: ReviewEngine.savingsRate(income: income, spend: spend),
+            debtCleared: debtCleared,
+            stageNow: ladderEvaluation.currentStage,
+            stagePrevious: nil,
+            score: ladderEvaluation.stabilityScore,
+            overspendTotal: overspend,
+            sinkingFundsOnTrack: ladderSnapshot.sinkingFundsOnTrack,
+            sinkingFundsTotal: ladderSnapshot.sinkingFundsTotal,
+            overrideCount: monthOverrides.count,
+            overrideCost: Money.sum(monthOverrides.compactMap(\.estimatedCost))
+        )
     }
 
     @ToolbarContentBuilder
