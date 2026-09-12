@@ -256,6 +256,7 @@ struct MenuBarPopover: View {
         }
 
         try? context.save()
+        WidgetSnapshotWriter.refresh(container: AppEnvironment.container)
 
         lastSaved = (transaction.id, formatter.string(amount))
         entry = ""

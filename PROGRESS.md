@@ -607,6 +607,73 @@ writes anything and never touches the store.
 Requires a Widget Extension target and the `group.com.MyFinances` App Group on both
 targets; both are done in Xcode's UI rather than by editing the project file.
 
+---
+
+## M13 — Icon, Dock and the menu bar
+
+**App icon** — drawn programmatically (`scratchpad/makeicon.swift`, kept with the notes):
+a sage squircle matching the app's accent, with a leaf echoing the menu bar glyph. Ten
+sizes, 16 through 1024. Veins are omitted below 64pt so it stays legible in the Dock.
+The first attempt read as a coffee bean; the points needed sharpening and a tilt.
+
+**The app is a normal app again.** `LSUIElement` is removed and the activation policy now
+defaults to `.regular`, with menu-bar-only as the opt-in.
+
+This fixed two reported problems that turned out to be one cause: an accessory app has no
+Dock icon **and no menu bar**. With the system menu bar set to auto-hide, moving the
+pointer to the top of the screen while Tranquil was frontmost revealed nothing at all —
+no battery, no clock — because there was no menu bar to reveal. BUILD_PROMPT §2 asks for
+a menu bar agent; the constraint costs the system menu bar while the app is focused, which
+is not a trade worth making. The status item and ⌥⌘E are unaffected either way, and
+Settings → General still offers the old behaviour with that consequence spelled out.
+
+---
+
+## M14 — Widget showing placeholder data, and the contribution grid
+
+**The placeholder bug had two parts.**
+
+The immediate cause was a **stale incremental build**: the installed binary had the new
+`WidgetSnapshot` (so the JSON gained the new keys) but the old `WidgetSnapshotWriter` (so
+they were never filled in). A clean Release build fixed it. Worth remembering — after
+editing a file the widget also compiles, build clean before installing.
+
+The deeper fault was mine, and it is the one that mattered: the provider read
+`WidgetSnapshot.load() ?? .placeholder`, so **any** failure to read the real data
+rendered convincing sample figures — ₵248.00, a five-day streak, a runway — that were
+not the user's. A widget that cannot reach its data must say so.
+
+`loadResult()` now returns a typed `LoadFailure` and the widget renders it:
+- *Can't reach shared data* — the App Group is missing on one of the targets
+- *Open Tranquil once* — container fine, no snapshot written yet
+- *Update Tranquil* — version mismatch between app and widget
+- *Data unreadable* — the file is there but will not decode
+
+Sample data now appears in exactly one place where it is honest: the widget gallery
+preview (`context.isPreview`).
+
+**Contribution grid** — the large widget carries a GitHub-style grid of the last 13 weeks,
+one square per financial day, four intensity steps, matching the Insights heatmap. It is
+computed in the app and shipped in the snapshot, so the widget stays a pure renderer.
+
+---
+
+## M15 — Widget refresh from the menu bar, and the empty states
+
+**Logging from the menu bar did not refresh the widget.** The refresh was wired to the
+main window, which is the one place this app usually is not. `WidgetSnapshotWriter.refresh`
+is now a single entry point rebuilding from the store, called on launch and from every
+save path. `SoftDeletable` was added so that generic fetch can filter deleted rows.
+
+**Empty and unavailable states redesigned.** They now carry the app's leaf on a soft tint
+rather than a warning triangle — sage when simply waiting for data, amber when something
+needs doing. Nothing here is an emergency, and a finance widget shouting from the desktop
+is a widget that gets removed.
+
+`LeafMark` and `LeafRib` are the icon's leaf as SwiftUI shapes. The first attempt read as
+a cashew: the leaf was drawn at roughly 0.74 as wide as it was long, where the icon uses
+0.54. Rendering it to a PNG before shipping is what caught it.
+
 ### Still hardcoded on purpose
 Notification times and cooldowns (they live in `NotificationRules` as declarative data),
 the payoff-order scoring weights (editable in code via `LoanEngine.Weights`, no UI yet),

@@ -9,7 +9,7 @@ struct SettingsView: View {
 
     @State private var launchAtLogin = LaunchAtLoginService.isEnabled
     @State private var status: String?
-    @AppStorage("tranquil.showInDock") private var showInDock = false
+    @AppStorage("tranquil.showInDock") private var showInDock = true
 
     private var settings: AppSettings? { settingsRows.first }
 
@@ -93,10 +93,18 @@ struct SettingsView: View {
             Toggle("Show in the Dock", isOn: $showInDock)
                 .onChange(of: showInDock) { _, newValue in
                     NSApp.setActivationPolicy(newValue ? .regular : .accessory)
+                    if newValue { NSApp.activate(ignoringOtherApps: true) }
                 }
-            Text("Tranquil normally lives only in the menu bar. Press ⌥⌘E to capture from "
-                 + "anywhere.")
+            Text(showInDock
+                 ? "Tranquil behaves like a normal app: a Dock icon you can keep, and a "
+                   + "menu bar that reveals when you move the pointer to the top of the "
+                   + "screen. The leaf stays in the menu bar either way, and ⌥⌘E still "
+                   + "captures from anywhere."
+                 : "Tranquil lives only in the menu bar. Note that while it is frontmost it "
+                   + "has no menu bar of its own, so if you have the system menu bar set to "
+                   + "auto-hide, moving the pointer to the top will reveal nothing.")
                 .font(Theme.Font.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
         }
         .formStyle(.grouped).scrollDisabled(true).frame(minHeight: 240)

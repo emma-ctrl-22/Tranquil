@@ -13,7 +13,10 @@ struct WidgetSnapshot: Codable, Sendable {
     static let currentVersion = 1
 
     /// The App Group both targets share.
-    static let appGroupID = "group.com.MyFinances"
+    ///
+    /// macOS requires the Team ID prefix — on iOS a plain `group.x` is fine, on macOS
+    /// the container will simply not resolve without it.
+    static let appGroupID = "VZ4AFL6ZHN.group.com.MyFinances"
     static let fileName = "widget-snapshot.json"
 
     var version: Int = WidgetSnapshot.currentVersion
@@ -50,6 +53,12 @@ struct WidgetSnapshot: Codable, Sendable {
 
     var hasAnyData: Bool = false
 
+    /// One entry per financial day, oldest first, for the contribution grid.
+    /// 0 = nothing logged, 1–4 = increasing number of entries.
+    var loggingGrid: [Int] = []
+    /// The day of week (0 = week start) the grid begins on, so columns line up.
+    var gridStartWeekday: Int = 0
+
     // MARK: - Shared location
 
     static var containerURL: URL? {
@@ -60,12 +69,53 @@ struct WidgetSnapshot: Codable, Sendable {
         containerURL?.appendingPathComponent(fileName)
     }
 
-    /// Reads the snapshot, or nil when the app has not written one yet.
+    /// Why the widget has nothing to show, when it has nothing to show.
+    ///
+    /// A widget that quietly renders sample figures when it cannot reach your data is
+    /// worse than one that admits it: the numbers look real and are not.
+    enum LoadFailure: Error, Sendable {
+        /// The App Group is missing or misspelled on one of the two targets.
+        case noSharedContainer
+        /// The container is reachable but the app has not written a snapshot yet.
+        case noSnapshotYet
+        /// Written by a different version of the app.
+        case versionMismatch
+        /// The file is there but unreadable.
+        case unreadable
+
+        var message: String {
+            switch self {
+            case .noSharedContainer: "Can't reach shared data"
+            case .noSnapshotYet: "Open Tranquil once"
+            case .versionMismatch: "Update Tranquil"
+            case .unreadable: "Data unreadable"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .noSharedContainer: "The App Group is not set up on both targets."
+            case .noSnapshotYet: "Launch the app and this will fill in."
+            case .versionMismatch: "The app and widget are different versions."
+            case .unreadable: "The snapshot file could not be read."
+            }
+        }
+    }
+
+    /// Reads the snapshot, or says why it could not.
+    static func loadResult() -> Result<WidgetSnapshot, LoadFailure> {
+        guard let url = fileURL else { return .failure(.noSharedContainer) }
+        guard let data = try? Data(contentsOf: url) else { return .failure(.noSnapshotYet) }
+        guard let snapshot = try? JSONDecoder().decode(WidgetSnapshot.self, from: data) else {
+            return .failure(.unreadable)
+        }
+        guard snapshot.version == currentVersion else { return .failure(.versionMismatch) }
+        return .success(snapshot)
+    }
+
+    /// Reads the snapshot, or nil when it could not be read.
     static func load() -> WidgetSnapshot? {
-        guard let url = fileURL, let data = try? Data(contentsOf: url) else { return nil }
-        guard let snapshot = try? JSONDecoder().decode(WidgetSnapshot.self, from: data),
-              snapshot.version == currentVersion else { return nil }
-        return snapshot
+        try? loadResult().get()
     }
 
     /// Written atomically so the widget never reads a half-written file.
@@ -91,6 +141,10 @@ struct WidgetSnapshot: Codable, Sendable {
         ladderStage: "Two-week buffer",
         nextAction: "Build a two-week buffer",
         nextDue: "Rent ₵900.00 on 1 Oct",
-        hasAnyData: true
+        hasAnyData: true,
+        loggingGrid: (0..<91).map { index in
+            [0, 0, 1, 2, 3, 4, 2, 1, 0, 3][index % 10]
+        },
+        gridStartWeekday: 0
     )
 }

@@ -240,6 +240,7 @@ struct QuickAddSheet: View {
         }
 
         try? context.save()
+        WidgetSnapshotWriter.refresh(container: AppEnvironment.container)
 
         model.lastSaved = (transaction.id, formatter.string(amount))
         justSaved = "Saved \(formatter.string(amount))"

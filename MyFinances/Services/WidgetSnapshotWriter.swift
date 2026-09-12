@@ -26,6 +26,46 @@ enum WidgetSnapshotWriter {
         var ladder: LadderEngine.Evaluation?
     }
 
+    /// Rebuilds the snapshot from the store. Call this after anything that changes the
+    /// ledger — including from the menu bar, where no window is open to notice.
+    static func refresh(container: ModelContainer) {
+        let context = ModelContext(container)
+        guard let settings = try? context.fetch(FetchDescriptor<AppSettings>()).first
+        else { return }
+
+        func fetch<T: PersistentModel>(_ type: T.Type) -> [T] {
+            ((try? context.fetch(FetchDescriptor<T>())) ?? []).filter { model in
+                (model as? any SoftDeletable)?.deletedAt == nil
+            }
+        }
+
+        let accounts = fetch(Account.self)
+        let transactions = fetch(Transaction.self)
+        let earmarks = fetch(Earmark.self)
+        let budgets = fetch(Budget.self)
+        let rules = fetch(RecurringRule.self)
+        let events = fetch(ScheduledEvent.self)
+        let loans = fetch(Loan.self)
+        let funds = fetch(SinkingFund.self)
+        let dailyLogs = fetch(DailyLog.self)
+
+        let ladderSnapshot = LadderSnapshotBuilder.build(
+            from: LadderSnapshotBuilder.Sources(
+                accounts: accounts, transactions: transactions, earmarks: earmarks,
+                budgets: budgets, rules: rules, events: events, loans: loans,
+                funds: funds, dailyLogs: dailyLogs, settings: settings
+            ),
+            calendar: settings.calendar
+        )
+
+        write(Inputs(
+            settings: settings, calendar: settings.calendar, formatter: settings.formatter,
+            accounts: accounts, transactions: transactions, earmarks: earmarks,
+            budgets: budgets, rules: rules, events: events, dailyLogs: dailyLogs,
+            ladder: LadderEngine.evaluate(ladderSnapshot)
+        ))
+    }
+
     static func write(_ inputs: Inputs) {
         var snapshot = WidgetSnapshot()
         let calendar = inputs.calendar
@@ -133,6 +173,20 @@ enum WidgetSnapshotWriter {
             guard state.isAheadOfPace || state.isOverspent else { return nil }
             return state.name
         }
+
+        // The contribution grid: 13 weeks ending today, aligned to whole weeks so the
+        // columns line up the way they do on the Insights heatmap.
+        let gridStart = calendar.addDays(-7 * 12, to: calendar.startOfWeek(containing: today))
+        let byDay = Dictionary(
+            inputs.dailyLogs.map { ($0.date, $0.entryCount) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        snapshot.loggingGrid = calendar.days(from: gridStart, through: today).map { day in
+            let count = byDay[day] ?? 0
+            // Four entries is a full-intensity day, matching the Insights heatmap.
+            return count == 0 ? 0 : Swift.min(4, count)
+        }
+        snapshot.gridStartWeekday = 0
 
         // One warning, chosen by what matters most.
         if let negative = projection.firstNegativeDay {
