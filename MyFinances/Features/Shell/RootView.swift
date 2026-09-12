@@ -32,6 +32,8 @@ struct RootView: View {
     private var funds: [SinkingFund]
     @Query(filter: #Predicate<OverrideLog> { $0.deletedAt == nil })
     private var overrides: [OverrideLog]
+    @Query(filter: #Predicate<IncomeEvent> { $0.deletedAt == nil })
+    private var incomeEvents: [IncomeEvent]
     @Query private var settingsRows: [AppSettings]
 
     private var settings: AppSettings? { settingsRows.first }
@@ -89,7 +91,10 @@ struct RootView: View {
                           lastReconciledOn: lastReconciledOn,
                           budgets: budgets, rules: rules, events: events,
                           loans: loans, goals: goals, earmarks: earmarks,
-                          ladder: ladderEvaluation)
+                          ladder: ladderEvaluation,
+                          advisorPosition: AdvisorEngine.position(advisorSituation),
+                          unallocatedWindfalls: incomeEvents.filter { $0.status == .unallocated },
+                          creep: creepVerdict)
         case .accounts:
             AccountsView(model: $model, balances: balances, formatter: formatter)
         case .ledger:
@@ -109,6 +114,12 @@ struct RootView: View {
                        snapshot: ladderSnapshot, formatter: formatter)
         case .review:
             ReviewView(weekly: weeklyReview, monthly: monthlyReview, formatter: formatter)
+        case .income:
+            IncomeView(model: $model, formatter: formatter, calendar: calendar,
+                       settings: settings, creep: creepVerdict, taxReserved: taxReserved)
+        case .advisor:
+            AdvisorView(model: $model, situation: advisorSituation,
+                        letter: monthlyLetter, formatter: formatter)
         default:
             ComingSoonView(screen: model.screen)
         }
@@ -151,6 +162,127 @@ struct RootView: View {
     /// The most recent financial day on which any account was reconciled.
     private var lastReconciledOn: Date? {
         dailyLogs.first { $0.wasReconciled }?.date
+    }
+
+    // MARK: - Income and advisor
+
+    private var taxReserved: Money {
+        BalanceEngine.totals(for: balances).taxReserved
+    }
+
+    /// Essential spend against net income, month by month, for 24 months.
+    private var creepVerdict: IncomeEngine.CreepVerdict {
+        let records = transactions.map(DataBridge.record)
+        let essentialIDs = Set(
+            transactions.compactMap(\.category).filter(\.isEssential).map(\.id)
+        )
+        let today = calendar.today()
+        var points: [IncomeEngine.CreepPoint] = []
+        for offset in stride(from: 23, through: 0, by: -1) {
+            let monthStart = calendar.addMonths(-offset, to: today)
+            let interval = DateInterval(start: monthStart,
+                                        end: calendar.addMonths(1, to: monthStart))
+            points.append(IncomeEngine.CreepPoint(
+                monthStart: monthStart,
+                essentialSpend: BalanceEngine.spend(transactions: records, in: interval,
+                                                    categoryIDs: essentialIDs),
+                netIncome: BalanceEngine.income(transactions: records, in: interval)
+            ))
+        }
+        // Name the essential categories that grew most over the last quarter.
+        let drivers = topEssentialCategories(records: records, essentialIDs: essentialIDs)
+        return IncomeEngine.creep(points: points, drivers: drivers)
+    }
+
+    private func topEssentialCategories(
+        records: [BalanceEngine.TransactionRecord], essentialIDs: Set<UUID>
+    ) -> [String] {
+        let today = calendar.today()
+        let recent = DateInterval(start: calendar.addMonths(-3, to: today),
+                                  end: calendar.addMonths(1, to: today))
+        let earlier = DateInterval(start: calendar.addMonths(-6, to: today),
+                                   end: calendar.addMonths(-3, to: today))
+        var growth: [(name: String, delta: Int)] = []
+        for category in transactions.compactMap(\.category) where essentialIDs.contains(category.id) {
+            guard !growth.contains(where: { $0.name == category.name }) else { continue }
+            let ids: Set<UUID> = [category.id]
+            let now = BalanceEngine.spend(transactions: records, in: recent, categoryIDs: ids)
+            let before = BalanceEngine.spend(transactions: records, in: earlier, categoryIDs: ids)
+            growth.append((category.name, now.minorUnits - before.minorUnits))
+        }
+        return growth.filter { $0.delta > 0 }.sorted { $0.delta > $1.delta }
+            .prefix(2).map(\.name)
+    }
+
+    private var advisorSituation: AdvisorEngine.Situation {
+        var situation = AdvisorEngine.Situation()
+        let snapshot = ladderSnapshot
+        situation.liquidAvailable = snapshot.liquidAvailable
+        situation.essentialMonthlySpend = snapshot.essentialMonthlySpend
+        situation.hasOverduePayments = snapshot.overdueLoanCount > 0
+        situation.highInterestDebtRemaining = snapshot.toxicDebtRemaining
+        situation.emergencyFundBalance = snapshot.emergencyFundBalance
+        situation.emergencyFundTargetMonths = snapshot.emergencyFundTargetMonths
+        situation.sinkingFundsBehind = snapshot.sinkingFundsTotal - snapshot.sinkingFundsOnTrack
+        situation.investedThisMonth = snapshot.investmentMonthsLast6 > 0
+        situation.goalsOutstanding = goals.filter { $0.status == .saving }.count
+        situation.ladderStage = ladderEvaluation.currentStage
+        situation.netWorth = BalanceEngine.totals(for: balances).netWorth
+        // Unallocated windfalls still owing a tax reserve.
+        situation.taxReserveOwed = Money.sum(
+            incomeEvents.filter { $0.status == .unallocated }.map(\.taxReserved)
+        )
+        return situation
+    }
+
+    private var monthlyLetter: String {
+        var input = AdvisorEngine.LetterInput()
+        let month = calendar.monthInterval(containing: calendar.currentDate())
+        input.monthName = month.start.formatted(.dateTime.month(.wide).year())
+        let headline = ReviewEngine.headlineFigure(monthlyReview, formatter: formatter)
+        input.headlineLabel = headline.0
+        input.headlineValue = headline.1
+
+        let review = weeklyReview
+        if review.envelopesOver.isEmpty && !review.envelopes.isEmpty {
+            input.whatWentRight.append("Every envelope held this week.")
+        }
+        if ladderSnapshot.daysLoggedLast28 >= 21 {
+            input.whatWentRight.append(
+                "\(ladderSnapshot.daysLoggedLast28) of the last 28 days logged."
+            )
+        }
+        if monthlyReview.debtCleared.isPositive {
+            input.whatWentRight.append(
+                "\(formatter.string(monthlyReview.debtCleared)) of principal cleared."
+            )
+        }
+
+        for envelope in review.envelopesOver.sorted(by: { $0.variance < $1.variance }).prefix(2) {
+            input.whatToChange.append(
+                "\(envelope.name) went over by "
+                + formatter.string(envelope.variance.magnitude) + "."
+            )
+        }
+        if ladderSnapshot.daysLoggedLast28 < 21 {
+            input.whatToChange.append(
+                "Only \(ladderSnapshot.daysLoggedLast28) of 28 days are logged."
+            )
+        }
+
+        let creep = creepVerdict
+        input.creepRatio = creep.latestQuarterAverage
+        input.creepIsRising = creep.isCreeping
+        input.creepDrivers = creep.drivers
+
+        input.instruction = ladderEvaluation.nextAction.title + "."
+        let monthOverrides = overrides.filter { entry -> Bool in
+            entry.occurredAt >= month.start && entry.occurredAt < month.end
+        }
+        input.overrideCount = monthOverrides.count
+        input.overrideCost = Money.sum(monthOverrides.compactMap(\.estimatedCost))
+
+        return AdvisorEngine.monthlyLetter(input, formatter: formatter)
     }
 
     // MARK: - Reviews

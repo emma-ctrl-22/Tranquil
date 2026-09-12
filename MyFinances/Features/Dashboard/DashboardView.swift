@@ -18,6 +18,9 @@ struct DashboardView: View {
     let goals: [Goal]
     let earmarks: [Earmark]
     let ladder: LadderEngine.Evaluation
+    let advisorPosition: AdvisorEngine.Position
+    let unallocatedWindfalls: [IncomeEvent]
+    let creep: IncomeEngine.CreepVerdict
 
     private var totals: BalanceEngine.Totals { BalanceEngine.totals(for: balances) }
     private var records: [BalanceEngine.TransactionRecord] { transactions.map(DataBridge.record) }
@@ -190,6 +193,26 @@ struct DashboardView: View {
             ))
         }
 
+        if !unallocatedWindfalls.isEmpty {
+            let total = Money.sum(unallocatedWindfalls.map(\.netUsable))
+            items.append(ModuleStrip.Item(
+                id: "windfall", screen: .income, label: "Waiting to allocate",
+                value: formatter.string(total),
+                detail: "\(unallocatedWindfalls.count) inflow(s) held out of spendable balance",
+                tone: .caution,
+                accessibleValue: formatter.accessibleString(total)
+            ))
+        }
+
+        items.append(ModuleStrip.Item(
+            id: "advisor", screen: .advisor, label: "Next money goes to",
+            value: "\(advisorPosition.step.rawValue)",
+            detail: advisorPosition.step.title,
+            tone: .neutral,
+            accessibleValue: "step \(advisorPosition.step.rawValue), "
+                           + advisorPosition.step.title
+        ))
+
         items.append(ModuleStrip.Item(
             id: "ladder", screen: .ladder, label: "Stability",
             value: "\(ladder.stabilityScore.total)",
@@ -358,7 +381,7 @@ struct DashboardView: View {
         ) && !balances.isEmpty
         if !overCommitted.isEmpty || !belowFloor.isEmpty || needsReconcile
             || !envelopesAheadOfPace.isEmpty || projection.firstNegativeDay != nil
-            || !toxicLoans.isEmpty {
+            || !toxicLoans.isEmpty || !unallocatedWindfalls.isEmpty || creep.isCreeping {
             VStack(spacing: Theme.Space.sm) {
                 ForEach(overCommitted) { entry in
                     // The invariant is surfaced, never silently rebalanced.
@@ -379,6 +402,27 @@ struct DashboardView: View {
                         title: reconcileTitle,
                         detail: "Count what is actually in one account and check it against the "
                               + "ledger. Small gaps compound quietly."
+                    )
+                }
+                if !unallocatedWindfalls.isEmpty {
+                    let total = Money.sum(unallocatedWindfalls.map(\.netUsable))
+                    NoticeRow(
+                        tone: .caution,
+                        icon: "tray.and.arrow.down",
+                        title: "\(formatter.string(total)) is waiting to be allocated",
+                        detail: "It is deliberately not part of your spendable balance until "
+                              + "you decide where it goes."
+                    )
+                }
+                if creep.isCreeping {
+                    NoticeRow(
+                        tone: .caution,
+                        icon: "chart.line.uptrend.xyaxis",
+                        title: "Essentials are taking a growing share of income",
+                        detail: creep.drivers.isEmpty
+                            ? "Two consecutive quarters of increase."
+                            : "Two consecutive quarters of increase, mostly in "
+                              + creep.drivers.joined(separator: " and ") + "."
                     )
                 }
                 if let toxic = toxicLoans.first {

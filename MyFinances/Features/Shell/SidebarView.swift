@@ -13,8 +13,8 @@ struct SidebarView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Space.lg) {
                     group("Daily", [.dashboard, .ledger, .accounts])
-                    group("Forward", [.plan, .debt, .goals])
-                    group("Standing back", [.ladder, .review, .income, .advisor, .insights])
+                    group("Forward", [.plan, .debt, .goals, .income])
+                    group("Standing back", [.ladder, .advisor, .review, .insights])
                 }
                 .padding(.vertical, Theme.Space.md)
             }

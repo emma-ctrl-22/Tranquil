@@ -353,6 +353,56 @@ plus current stage) and **Runway** (months of essentials covered).
     recorded evaluations; the app has none yet, so Tranquil is correctly unreachable
     rather than falsely claimable. `LadderState` snapshots will feed it.
 
-### Next — M7.5, Income events and the Advisor
-Windfall interception, allocation sheet, tax reserve, salary-rise ratchet, creep chart,
-AdvisorEngine with R1–R11, verdicts, override log and the monthly letter.
+---
+
+## M7.5 — Income events and the Advisor ✅
+
+### What shipped
+
+**`Engines/IncomeEngine`** — 24 tests.
+- **Interception**: anything above `1.5 x medianWeeklyIncome` lands `.unallocated` and is
+  excluded from spendable balance. With **no** income history nothing is intercepted —
+  otherwise the first entry ever made would be held hostage.
+- R3 tax reserve on untaxed kinds only; salary, gifts and refunds reserve nothing.
+- §4a split 40/25/20/15 and §4b split 40/30/20/10, both asserted against the spec, and
+  `allocate` proven to lose nothing on an awkward total.
+- Effective hourly rate, and client roll-ups sorted by what the work actually pays.
+- Concentration: one source **over** 60% raises the emergency target to 6 months.
+  Exactly 60% does not.
+- Salary rise returns the **delta** only; a cut or a flat month is not a rise.
+- Creep needs **three** quarters, each higher than the last. One bad quarter does not
+  trip it, and a month with no income has no ratio rather than breaking the chart.
+
+**`Engines/AdvisorEngine`** — 27 tests.
+- All eleven rules as declarative data. A test asserts **only R2** has no override path.
+- Order of Operations as an eleven-step ladder; the advisor never recommends a step while
+  an earlier one is unmet. Tested at each precedence boundary — tax reserve outranks
+  everything, the employer match outranks clearing 30% debt.
+- `assess(...)` returns a verdict with every finding's rule ID and **the arithmetic**.
+- Tests assert the output never contains "cannot afford", never an exclamation mark, and
+  is byte-identical across runs.
+- `monthlyLetter` — §6 structure, at most two things to change, and the creep check.
+
+**Income screen** — windfall inbox, the tax-reserve card, effective hourly per client,
+and the 24-month lifestyle-creep chart.
+
+**Allocation sheet** — the §4a arithmetic, draggable slices, and a hard requirement that
+they total 100% before it commits.
+
+**Advisor screen** — Order of Operations with a marker on your actual step, the rule book,
+the monthly letter with copy, and the override log totalled without commentary.
+
+### Dashboard
+Two tiles added — **Waiting to allocate** and **Next money goes to** (the Order of
+Operations step) — plus notices for held windfalls and for creep.
+
+### Assumptions added
+16. **No interception without history.** With a zero median, nothing is a windfall.
+17. **Creep needs three quarters** of data and two consecutive rises. Two quarters would
+    fire on any single noisy month.
+18. **`taxReserveOwed`** is the tax held against still-unallocated events. Once allocated
+    it has reached the reserve account and is no longer outstanding.
+
+### Next — M8, Polish
+Heatmap and charts, the full notification engine, backup, export/import, app lock,
+keyboard shortcuts, empty states.
