@@ -47,7 +47,7 @@ final class AppModel {
         var isAvailable: Bool {
             switch self {
             case .dashboard, .ledger, .accounts, .plan, .debt, .goals, .ladder, .review,
-             .income, .advisor: true
+             .income, .advisor, .insights: true
             default: false
             }
         }
@@ -63,6 +63,7 @@ final class AppModel {
     var editingAccountID: UUID?
     var isAccountEditorShown = false
     var searchText = ""
+    var heatmapMode: InsightsEngine.HeatmapMode = .logged
 
     /// The five-second undo window after a save.
     var lastSaved: (id: UUID, label: String)?

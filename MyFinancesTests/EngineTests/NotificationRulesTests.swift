@@ -111,3 +111,34 @@ struct NotificationRulesTests {
             daysSinceLastDelivery: nil, budget: budget, notificationsEnabled: true))
     }
 }
+
+@MainActor
+struct NotificationSchedulerTests {
+    private let calendar = FinancialCalendar(timeZone: TimeZone(identifier: "UTC")!,
+                                             now: { Date(timeIntervalSince1970: 1_789_000_000) })
+
+    @Test func unloggedDaysAreCountedBackFromToday() {
+        let today = calendar.today()
+        let logs = [
+            DailyLog(date: calendar.addDays(-3, to: today), entryCount: 2),
+            DailyLog(date: calendar.addDays(-8, to: today), entryCount: 1),
+        ]
+        // Today, −1 and −2 are unlogged; −3 is logged.
+        #expect(NotificationScheduler.consecutiveUnloggedDays(
+            logs: logs, today: today, calendar: calendar) == 3)
+    }
+
+    @Test func loggingTodayMeansNoUnloggedRun() {
+        let today = calendar.today()
+        #expect(NotificationScheduler.consecutiveUnloggedDays(
+            logs: [DailyLog(date: today, entryCount: 1)],
+            today: today, calendar: calendar) == 0)
+    }
+
+    @Test func anEmptyHistoryDoesNotLoopForever() {
+        // The guard rail matters: an empty database must not spin.
+        let count = NotificationScheduler.consecutiveUnloggedDays(
+            logs: [], today: calendar.today(), calendar: calendar)
+        #expect(count == 60)
+    }
+}

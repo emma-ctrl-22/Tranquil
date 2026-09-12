@@ -21,6 +21,8 @@ struct DashboardView: View {
     let advisorPosition: AdvisorEngine.Position
     let unallocatedWindfalls: [IncomeEvent]
     let creep: IncomeEngine.CreepVerdict
+    let streaks: InsightsEngine.StreakSummary
+    let microSpendThisMonth: Money
 
     private var totals: BalanceEngine.Totals { BalanceEngine.totals(for: balances) }
     private var records: [BalanceEngine.TransactionRecord] { transactions.map(DataBridge.record) }
@@ -232,6 +234,17 @@ struct DashboardView: View {
                 accessibleValue: "\(tenths / 10) point \(abs(tenths % 10)) months"
             ))
         }
+
+        items.append(ModuleStrip.Item(
+            id: "insights", screen: .insights, label: "Logging streak",
+            value: streaks.current == 0 ? "—" : "\(streaks.current)d",
+            detail: microSpendThisMonth.isZero
+                ? "Longest \(streaks.longest) days"
+                : "\(formatter.string(microSpendThisMonth)) on small, frequent spending "
+                  + "this month",
+            tone: streaks.current > 0 ? .positive : .neutral,
+            accessibleValue: "\(streaks.current) day streak"
+        ))
 
         return items
     }

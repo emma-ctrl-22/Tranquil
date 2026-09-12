@@ -403,6 +403,69 @@ Operations step) — plus notices for held windfalls and for creep.
 18. **`taxReserveOwed`** is the tax held against still-unallocated events. Once allocated
     it has reached the reserve account and is no longer outstanding.
 
-### Next — M8, Polish
-Heatmap and charts, the full notification engine, backup, export/import, app lock,
-keyboard shortcuts, empty states.
+---
+
+## M8 — Polish ✅
+
+### What shipped
+
+**`Engines/InsightsEngine`** — 17 tests. The 53x7 heatmap in three modes (logged, spend,
+green days), with intensity always relative to **your own** trailing median, never an
+external benchmark. Current and longest streaks, the logging rate, category rollups with
+month-over-month deltas, the micro-spend rollup, and the debt burn-down.
+
+**Insights screen** — heatmap with mode toggle and streak figures, income against expense
+for 12 months, net worth, stacked debt burn-down, the micro-spend card, and the category
+breakdown with deltas.
+
+**`Services/ExportService`** — 17 tests. RFC 4180 CSV writing and parsing, a column
+mapper that guesses from common header names, and seven date shapes. Rows that cannot be
+read are **skipped and listed**, never guessed at.
+
+**`Services/BackupService`** — 4 tests. Copies the store plus its `-wal` and `-shm`
+sidecars (without the write-ahead log a backup can be missing the newest transactions),
+keeps the last 12, and leaves unrelated files in the folder alone.
+
+**`Services/AppLockService`** — Touch ID or password on launch and wake, always with a
+password fallback so the lock can never make the app unopenable.
+
+**`Services/NotificationScheduler`** — evaluates all fifteen rules against live data.
+Every one still passes through the single `shouldDeliver` gate.
+
+**Settings** — Data tab (backup folder, back up now, weekly backup, CSV and JSON export,
+CSV import) and Security tab.
+
+**Keyboard** — ⌘1–⌘9 for screens, ⌘N log, ⌘T transfer, ⌥⌘I inspector, ⌥⌘E global capture.
+
+**Dashboard** — a Logging streak tile, carrying the month's micro-spend total.
+
+### Bugs the tests caught
+- **CRLF line endings.** Swift treats `\r\n` as a *single* `Character`, so the parser
+  matched neither `\n` nor `\r` and folded the line break into a field — every
+  Windows-exported CSV would have imported as one giant row. All three line endings are
+  now matched explicitly.
+- **The app installed a status item, a global hotkey and a notification prompt while
+  hosting tests.** Parallel test hosts competed for process-global resources. The
+  delegate now no-ops under a test host.
+
+### On running the tests
+Use `-parallel-testing-enabled NO`. In parallel, one crashed worker reports every test it
+had not yet run as "failed", which hides the real failure. Serial output gives a clean
+`✔`/`✘` per test.
+
+### Assumptions added
+19. **Heatmap intensity** — four entries is a full-intensity logged day; twice your median
+    day is a full-intensity spend day. The spec fixes the modes, not the ramps.
+20. **Imported rows land as estimates**, so they surface in the needs-review queue rather
+    than silently becoming truth.
+21. **Net worth history is reconstructed from the ledger** rather than read from
+    `BalanceSnapshot`. The snapshot is only ever a cache, and if the two disagreed the
+    ledger would win.
+
+---
+
+## All milestones complete
+
+335 tests, 0 failures, no warnings. Remaining known gaps are listed under each milestone's
+"what is stubbed"; the largest are `monthsAllStagesHeld` (needs recorded history before
+Ladder stage 7 can be reached) and notification inline-action handlers.

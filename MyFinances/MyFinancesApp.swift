@@ -51,7 +51,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
 
+    /// True when the app is only hosting a test bundle. A status item, a system-wide
+    /// hotkey and a notification prompt are all process-global: several parallel test
+    /// hosts competing for them kills the workers.
+    private var isHostingTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !isHostingTests else {
+            NSApp.setActivationPolicy(.prohibited)
+            return
+        }
+
         // Menu bar agent: no Dock icon by default. Settings can put it back.
         let wantsDockIcon = UserDefaults.standard.bool(forKey: "tranquil.showInDock")
         NSApp.setActivationPolicy(wantsDockIcon ? .regular : .accessory)

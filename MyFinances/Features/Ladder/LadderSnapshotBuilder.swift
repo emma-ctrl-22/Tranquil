@@ -4,7 +4,7 @@ import SwiftData
 /// Gathers everything the Ladder needs from the store, once.
 ///
 /// The engine stays pure; this is the seam where SwiftData meets it.
-enum LadderSnapshotBuilder {
+nonisolated enum LadderSnapshotBuilder {
 
     struct Sources {
         var accounts: [Account] = []

@@ -3,7 +3,7 @@ import SwiftData
 
 /// Keeps one `DailyLog` row per financial day. It powers the heatmap, the streak, and
 /// the "nothing logged today" nudge, so it has to be updated wherever an entry is saved.
-enum DailyLogService {
+nonisolated enum DailyLogService {
 
     /// Record that an entry was logged on the financial day `date` falls in.
     static func recordEntry(on date: Date, in context: ModelContext, calendar: FinancialCalendar) {

@@ -79,7 +79,22 @@ struct RootView: View {
         )) { entry in
             ReconcileSheet(entry: entry, formatter: formatter, calendar: calendar)
         }
-        .task { bootstrapIfNeeded() }
+        .task {
+            bootstrapIfNeeded()
+            runNotificationRules()
+        }
+        .background {
+            // Keyboard navigation: one shortcut per screen, always available.
+            ForEach(Array(AppModel.Screen.allCases.enumerated()), id: \.element) { index, screen in
+                if screen.isAvailable && index < 9 {
+                    Button("") { model.open(screen) }
+                        .keyboardShortcut(
+                            KeyEquivalent(Character("\(index + 1)")), modifiers: .command
+                        )
+                        .hidden()
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -94,7 +109,8 @@ struct RootView: View {
                           ladder: ladderEvaluation,
                           advisorPosition: AdvisorEngine.position(advisorSituation),
                           unallocatedWindfalls: incomeEvents.filter { $0.status == .unallocated },
-                          creep: creepVerdict)
+                          creep: creepVerdict, streaks: streakSummary,
+                          microSpendThisMonth: InsightsEngine.microSpendTotal(categoryTotals))
         case .accounts:
             AccountsView(model: $model, balances: balances, formatter: formatter)
         case .ledger:
@@ -120,6 +136,12 @@ struct RootView: View {
         case .advisor:
             AdvisorView(model: $model, situation: advisorSituation,
                         letter: monthlyLetter, formatter: formatter)
+        case .insights:
+            InsightsView(model: $model, formatter: formatter, calendar: calendar,
+                         cells: heatmapCells, streaks: streakSummary,
+                         categoryTotals: categoryTotals, monthBars: monthBars,
+                         netWorthSeries: netWorthSeries, debtPoints: debtSeries,
+                         heatmapMode: $model.heatmapMode)
         default:
             ComingSoonView(screen: model.screen)
         }
@@ -162,6 +184,84 @@ struct RootView: View {
     /// The most recent financial day on which any account was reconciled.
     private var lastReconciledOn: Date? {
         dailyLogs.first { $0.wasReconciled }?.date
+    }
+
+    // MARK: - Insights
+
+    private var heatmapDays: [InsightsEngine.DayInput] {
+        dailyLogs.map {
+            InsightsEngine.DayInput(date: $0.date, entryCount: $0.entryCount,
+                                    spend: $0.spend, stayedInsidePace: $0.stayedInsidePace)
+        }
+    }
+
+    private var heatmapCells: [InsightsEngine.Cell] {
+        InsightsEngine.heatmap(days: heatmapDays, mode: model.heatmapMode,
+                               today: calendar.today(), calendar: calendar)
+    }
+
+    private var streakSummary: InsightsEngine.StreakSummary {
+        InsightsEngine.streaks(days: heatmapDays, today: calendar.today(), calendar: calendar)
+    }
+
+    private var categoryTotals: [InsightsEngine.CategoryTotal] {
+        let records = transactions.map(DataBridge.record)
+        let month = calendar.monthInterval(containing: calendar.currentDate())
+        let previousStart = calendar.addMonths(-1, to: month.start)
+        let previous = DateInterval(start: previousStart, end: month.start)
+
+        var seen: Set<UUID> = []
+        var totals: [InsightsEngine.CategoryTotal] = []
+        for category in transactions.compactMap(\.category) where !seen.contains(category.id) {
+            seen.insert(category.id)
+            let ids: Set<UUID> = [category.id]
+            totals.append(InsightsEngine.CategoryTotal(
+                id: category.id, name: category.name, colorHex: category.colorHex,
+                amount: BalanceEngine.spend(transactions: records, in: month, categoryIDs: ids),
+                previous: BalanceEngine.spend(transactions: records, in: previous,
+                                              categoryIDs: ids),
+                isMicro: category.isMicro
+            ))
+        }
+        return InsightsEngine.rollup(totals)
+    }
+
+    private var monthBars: [InsightsEngine.MonthBar] {
+        let records = transactions.map(DataBridge.record)
+        let today = calendar.today()
+        return stride(from: 11, through: 0, by: -1).map { offset -> InsightsEngine.MonthBar in
+            let start = calendar.startOfMonth(containing: calendar.addMonths(-offset, to: today))
+            let interval = DateInterval(start: start, end: calendar.addMonths(1, to: start))
+            return InsightsEngine.MonthBar(
+                monthStart: start,
+                income: BalanceEngine.income(transactions: records, in: interval),
+                expense: BalanceEngine.spend(transactions: records, in: interval)
+            )
+        }
+    }
+
+    /// Net worth reconstructed from the ledger. `BalanceSnapshot` is only ever a cache;
+    /// if it disagreed with the ledger the ledger would win, so the chart reads the
+    /// ledger directly.
+    private var netWorthSeries: [InsightsEngine.Point] {
+        let records = transactions.map(DataBridge.record)
+        let accountRecords = accounts.map(DataBridge.record)
+        let today = calendar.today()
+        return stride(from: 11, through: 0, by: -1).map { offset -> InsightsEngine.Point in
+            let date = calendar.addMonths(-offset, to: today)
+            let asOf = BalanceEngine.balances(accounts: accountRecords, transactions: records,
+                                              earmarks: [], asOf: date)
+            return InsightsEngine.Point(date: date,
+                                        value: BalanceEngine.totals(for: asOf).netWorth)
+        }
+    }
+
+    private var debtSeries: [InsightsEngine.DebtPoint] {
+        let positions = loans.filter { $0.status != .planned }
+            .map { LoanEngine.position(for: DataBridge.loan($0), calendar: calendar) }
+        guard !positions.isEmpty else { return [] }
+        return InsightsEngine.debtBurndown(positions: positions, from: calendar.today(),
+                                           months: 24, calendar: calendar)
     }
 
     // MARK: - Income and advisor
@@ -409,6 +509,44 @@ struct RootView: View {
             .keyboardShortcut("i", modifiers: [.command, .option])
             .help("Toggle the details panel (⌥⌘I)")
         }
+    }
+
+    /// Runs the declarative rule set against live data, once per launch.
+    private func runNotificationRules() {
+        guard let settings else { return }
+        let week = calendar.weekInterval(containing: calendar.currentDate())
+        let records = transactions.map(DataBridge.record)
+        let elapsed = calendar.elapsedDaysInWeek(containing: calendar.currentDate())
+        let days = calendar.daysInMonth(containing: calendar.currentDate())
+
+        let envelopes = budgets.map { budget in
+            BudgetEngine.state(
+                for: DataBridge.envelope(budget),
+                spent: BalanceEngine.spend(transactions: records, in: week,
+                                           categoryIDs: budget.category.map { Set([$0.id]) }),
+                elapsedDaysInWeek: elapsed, daysInMonth: days
+            )
+        }
+
+        NotificationScheduler.evaluate(NotificationScheduler.Context(
+            settings: settings,
+            calendar: calendar,
+            formatter: formatter,
+            dailyLogs: dailyLogs,
+            envelopes: envelopes,
+            loans: loans.filter { $0.status != .planned }
+                .map { LoanEngine.position(for: DataBridge.loan($0), calendar: calendar) },
+            rules: rules,
+            balances: balances,
+            projection: ForecastEngine.project(
+                startingBalance: BalanceEngine.totals(for: balances).liquidAvailable,
+                from: calendar.currentDate(), days: 30,
+                scheduled: rules.filter { !$0.isArchived }.map(DataBridge.scheduled),
+                oneOffs: events.map(DataBridge.oneOff), calendar: calendar
+            ),
+            lastReconciledOn: lastReconciledOn,
+            goals: goals.map { DataBridge.goal($0, earmarks: earmarks) }
+        ))
     }
 
     /// A brand new database still needs its categories and a settings row before
